@@ -4,13 +4,15 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'dart:io';
+import 'dart:convert';
 
+import '../../../apis/postReview_api.dart';
 import '../../../constants/appConstants.dart';
 import '../../../utilities/reviewsScaffoldBackground.dart';
 
 class Review extends StatefulWidget {
-  const Review({super.key});
-
+  const Review({required this.menuId});
+final String menuId;
   @override
   _ReviewState createState() => _ReviewState();
 }
@@ -19,6 +21,10 @@ class _ReviewState extends State<Review> {
   File? _image1;
   File? _image2;
   Map<String, int> scores = {};
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  // 1) This will let us show/hide the progress indicator
+  bool _isLoading = false;
 
   void initializeScores() {
     List<String> categories = [
@@ -28,11 +34,11 @@ class _ReviewState extends State<Review> {
       'Quality & Freshness Of Ingredients',
       'Authenticity & Creativity',
       'Cooking Techniques & Temperature',
-      'Freshness',
-      'Value For Money',
+      'Freshness'
       'Dining Experience',
-      'Hygiene',
+      'Value For Money',
 
+      'Hygiene',
     ];
 
     scores = Map.fromIterable(
@@ -50,8 +56,11 @@ class _ReviewState extends State<Review> {
         children: [
           Row(
             children: [
-              Icon(Icons.circle_rounded,color: Color(0xFFFFDCC0),size: 12,),
-
+              Icon(
+                Icons.circle_rounded,
+                color: Color(0xFFFFDCC0),
+                size: 12,
+              ),
               Padding(
                 padding: const EdgeInsets.only(left: 11),
                 child: Text(
@@ -144,8 +153,7 @@ class _ReviewState extends State<Review> {
                     Row(
                       children: [
                         Icon(Icons.circle_rounded,
-                            color: Color(0xFFFFDCC0),
-                            size: screenWidth * 0.03),
+                            color: Color(0xFFFFDCC0), size: screenWidth * 0.03),
                         SizedBox(width: screenWidth * 0.02),
                         Expanded(
                           child: Text(
@@ -183,7 +191,8 @@ class _ReviewState extends State<Review> {
                         BoxShadow(
                           color: Colors.black26,
                           blurRadius: screenWidth * 0.02,
-                          offset: Offset(screenWidth * 0.005, screenWidth * 0.005),
+                          offset:
+                              Offset(screenWidth * 0.005, screenWidth * 0.005),
                         ),
                       ],
                     ),
@@ -226,6 +235,9 @@ class _ReviewState extends State<Review> {
     // TODO: implement initState
     super.initState();
     initializeScores();
+    // Set the date text here
+    String currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _dateController.text = currentDate;
   }
 
   @override
@@ -260,26 +272,37 @@ class _ReviewState extends State<Review> {
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: GestureDetector(
-                onTap: () {
-                  final snackBar = SnackBar(
-                    content: Text(
-                      "This feature is in development.",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    backgroundColor: Colors.black87, // Floating effect
-                    behavior: SnackBarBehavior.floating,
-                    action: SnackBarAction(
-                      label: "OK",
-                      textColor: Color(0xFFFF6900), // Orangish color
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Closes the snackbar
-                      },
-                    ),
-                    duration: Duration(seconds: 3), // Auto dismiss after 3 sec
-                  );
+                  onTap: () async {
+                    final nameValue = _nameController.text.trim();
+                    final dateValue = _dateController.text.trim();
 
-                  ScaffoldMessenger.of(context).showSnackBar(snackBar);
-                },
+                    if (nameValue.isEmpty) {
+                      // show snackBar for empty name
+                    } else if (dateValue.isEmpty) {
+                      // show snackBar for empty date
+                    } else {
+                      setState(() => _isLoading = true);
+
+                      try {
+                        // IMPORTANT: await the function
+                        await submitReview(
+                          context,
+                          nameValue,
+                          dateValue,
+                          scores,
+                          _image1,
+                          _image2,
+                          widget.menuId,
+                        );
+                      } finally {
+                        // Once the network call is done (or fails),
+                        // we hide the loader
+                        if (mounted) {
+                          setState(() => _isLoading = false);
+                        }
+                      }
+                    }
+                  },
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.5,
                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -288,7 +311,9 @@ class _ReviewState extends State<Review> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
-                    child: Text(
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white,)
+                   : Text(
                       "Submit",
                       style: TextStyle(
                         color: Colors.white,
@@ -325,9 +350,12 @@ class _ReviewState extends State<Review> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            textField("Name"),
+            textField(
+              "Name",
+              controller: _nameController,
+            ),
             SizedBox(height: screenHeight * 0.015),
-            textField(currentDate, readOnly: true),
+            textField(currentDate, readOnly: true,controller: _dateController),
           ],
         ),
       ),
@@ -335,8 +363,13 @@ class _ReviewState extends State<Review> {
   }
 
   /// Reusable TextField
-  Widget textField(String hint, {bool readOnly = false}) {
+  Widget textField(
+    String hint, {
+    bool readOnly = false,
+    TextEditingController? controller,
+  }) {
     return TextField(
+      controller: controller,
       readOnly: readOnly,
       decoration: InputDecoration(
         hintText: hint,

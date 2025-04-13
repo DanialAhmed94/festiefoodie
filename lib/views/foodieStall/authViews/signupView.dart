@@ -2,9 +2,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:festiefoodie/constants/appConstants.dart';
 import '../../../annim/transiton.dart';
+import '../../../apis/authentication/signup.dart';
 import '../../../utilities/authenticationBackground.dart';
 import 'loginView.dart';
 
+// 1) Add an _isLoading boolean
 class SignupView extends StatefulWidget {
   const SignupView({super.key});
 
@@ -24,11 +26,13 @@ class _SignupViewState extends State<SignupView> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  // 1) Track loading state
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
 
-    // Add listeners to focus nodes to scroll to the field
     _emailFocus.addListener(() => _scrollToFocusedField(_emailFocus));
     _usernameFocus.addListener(() => _scrollToFocusedField(_usernameFocus));
     _passwordFocus.addListener(() => _scrollToFocusedField(_passwordFocus));
@@ -50,8 +54,8 @@ class _SignupViewState extends State<SignupView> {
     if (focusNode.hasFocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollController.animateTo(
-          150.0, // Adjust this value based on the position of your fields
-          duration: Duration(milliseconds: 300),
+          150.0, // Adjust based on your layout
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
       });
@@ -81,18 +85,18 @@ class _SignupViewState extends State<SignupView> {
                     focusNode: _emailFocus,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Color(0xFF272727).withOpacity(0.2),
+                      fillColor: const Color(0xFF272727).withOpacity(0.2),
                       hintText: 'Email',
-                      hintStyle: TextStyle(color: Colors.black26),
+                      hintStyle: const TextStyle(color: Colors.black26),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      prefixIcon: Icon(Icons.email, color: Colors.white),
+                      prefixIcon: const Icon(Icons.email, color: Colors.white),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    style: TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Colors.black),
                     onEditingComplete: () {
                       FocusScope.of(context).requestFocus(_usernameFocus);
                     },
@@ -105,18 +109,18 @@ class _SignupViewState extends State<SignupView> {
                     focusNode: _usernameFocus,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Color(0xFF272727).withOpacity(0.2),
+                      fillColor: const Color(0xFF272727).withOpacity(0.2),
                       hintText: 'Username',
-                      hintStyle: TextStyle(color: Colors.black26),
+                      hintStyle: const TextStyle(color: Colors.black26),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      prefixIcon: Icon(Icons.person, color: Colors.white),
+                      prefixIcon: const Icon(Icons.person, color: Colors.white),
                     ),
                     keyboardType: TextInputType.name,
                     textInputAction: TextInputAction.next,
-                    style: TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Colors.black),
                     onEditingComplete: () {
                       FocusScope.of(context).requestFocus(_passwordFocus);
                     },
@@ -130,61 +134,64 @@ class _SignupViewState extends State<SignupView> {
                     obscureText: true,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Color(0xFF272727).withOpacity(0.2),
+                      fillColor: const Color(0xFF272727).withOpacity(0.2),
                       hintText: 'Password',
-                      hintStyle: TextStyle(color: Colors.black26),
+                      hintStyle: const TextStyle(color: Colors.black26),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      prefixIcon: Icon(Icons.lock, color: Colors.white),
+                      prefixIcon: const Icon(Icons.lock, color: Colors.white),
                     ),
                     keyboardType: TextInputType.visiblePassword,
                     textInputAction: TextInputAction.done,
-                    style: TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Colors.black),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
 
-            // Sign In Button
+            // SignUp Button
             GestureDetector(
-              onTap: (){
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      "Account successfully created.",
-                      style: TextStyle(
-                        fontFamily: "inter-medium",
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                    ),
-                    backgroundColor: Colors.black87,
-                    behavior: SnackBarBehavior.floating,
-                    action: SnackBarAction(
-                      label: "OK",
-                      textColor: Colors.orange,
-                      onPressed: () {
-                        // Dismiss the snackbar
-                      },
-                    ),
-                  ),
-                );
-                Navigator.push(context,
-                    FadePageRouteBuilder(widget: LoginView()));
+              // 2) Make onTap async and call signUp
+              onTap: () async {
+                // Optional form check
+                if (_formKey.currentState!.validate()) {
+                  setState(() {
+                    _isLoading = true;
+                  });
 
+                  // Call the signUp API with needed fields
+                  await signUp(
+                    context,
+                    _usernameController.text,       // fullName
+                    _emailController.text,          // email
+                    '',                              // phone (empty)
+                    Future.value([]),               // images (empty)
+                    '',                              // organization (empty)
+                    '',                              // organization address (empty)
+                    _passwordController.text,        // password
+                  );
+
+                  setState(() {
+                    _isLoading = false;
+                  });
+
+                }
               },
               child: Container(
                 width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
-                  color: Color(0xFFFF6900),
+                  color: const Color(0xFFFF6900),
                   borderRadius: BorderRadius.circular(12),
                 ),
+                // 3) Show CircularProgressIndicator if loading
                 child: Center(
-                  child: Text(
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text(
                     "SignUp",
                     style: TextStyle(
                       color: Colors.white,
@@ -201,19 +208,22 @@ class _SignupViewState extends State<SignupView> {
             RichText(
               text: TextSpan(
                 text: "Already have an account? ",
-                style: TextStyle(color: Colors.black, fontSize: 16),
+                style: const TextStyle(color: Colors.black, fontSize: 16),
                 children: [
                   TextSpan(
-                      text: "Sign In",
-                      style: TextStyle(
-                        color: Color(0xFFFF6900), // Tapable text color
-                        fontWeight: FontWeight.bold,
-                      ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          Navigator.push(context,
-                              FadePageRouteBuilder(widget: LoginView()));
-                        }),
+                    text: "Sign In",
+                    style: const TextStyle(
+                      color: Color(0xFFFF6900),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+                        Navigator.push(
+                          context,
+                          FadePageRouteBuilder(widget: const LoginView()),
+                        );
+                      },
+                  ),
                 ],
               ),
             )

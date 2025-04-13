@@ -1,8 +1,12 @@
 import 'package:festiefoodie/constants/appConstants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import '../../annim/transiton.dart';
 import '../../utilities/connectivityServices.dart';
 import '../../utilities/getUserAddress.dart';
+import '../../utilities/sharedPrefs.dart';
+import '../foodieStall/authViews/loginView.dart';
+import '../foodieStall/foofieStallHome.dart';
 import 'HomeGoogleMap.dart';
 import 'widgets/drawer.dart';
 
@@ -60,6 +64,23 @@ class _MainScreenState extends State<FoodieReviewHomeMap> {
             Padding(
               padding: const EdgeInsets.only(right: 18),
               child: GestureDetector(
+                onTap: () async {
+                  final isLoggedIn = await getIsLogedIn();
+
+                  if (isLoggedIn == true) {
+                    // Navigate directly to stall home
+                    Navigator.push(
+                      context,
+                      FadePageRouteBuilder(widget: FoodieStallHome()),
+                    );
+                  } else {
+                    // Navigate to login screen
+                    Navigator.push(
+                      context,
+                      FadePageRouteBuilder(widget: LoginView()),
+                    );
+                  }
+                },
 
                 child: Image.asset(
                   AppConstants.foodielogo,

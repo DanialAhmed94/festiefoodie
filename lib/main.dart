@@ -1,9 +1,21 @@
+import 'package:festiefoodie/providers/eventProvider.dart';
+import 'package:festiefoodie/providers/festivalProvider.dart';
+import 'package:festiefoodie/providers/menuProvider.dart';
+import 'package:festiefoodie/providers/stallProvider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'splashView.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp((MultiProvider(providers: [
+      ChangeNotifierProvider(create: (_) => FestivalProvider()),
+      ChangeNotifierProvider(create: (_) => EventProvider()),
+      ChangeNotifierProvider(create: (_) => StallProvider()),
+      ChangeNotifierProvider(create: (_) => MenuProvider()),
+
+  ],
+     child: const MyApp())));
 }
 
 class MyApp extends StatelessWidget {

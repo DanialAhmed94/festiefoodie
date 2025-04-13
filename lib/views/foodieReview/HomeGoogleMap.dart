@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../models/festivalModel.dart';
+import '../../providers/festivalProvider.dart';
 import '../../utilities/getUserLocation.dart';
 import '../foodieStall/mapViews/LocationMap.dart';
 import 'widgets/modalBottomSheet.dart';
+import 'package:provider/provider.dart';
 
 class GoogleMapWidget extends StatefulWidget {
   const GoogleMapWidget({Key? key}) : super(key: key);
@@ -38,43 +41,77 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
 
     // Fetch custom marker icon
   }
-
   Future<void> _setupMap() async {
     try {
+      final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
+      await festivalProvider.fetchFestivals(context);
+
       final Position position = await getUserLocation();
       userLocation = LatLng(position.latitude, position.longitude);
-      final LatLng latLng = LatLng(position.latitude, position.longitude);
 
       setState(() {
         _markers.add(
           Marker(
             markerId: MarkerId('userLocation'),
-            position: latLng,
+            position: userLocation!,
             infoWindow: InfoWindow(title: 'Your Current Location'),
             icon: _customMarkerIcon ?? BitmapDescriptor.defaultMarker,
           ),
         );
       });
-// **Add Predefined UK Markers**
-      for (var i = 0; i < _ukLocations.length; i++) {
+
+      // Add Festival Markers
+      for (var festival in festivalProvider.festivals) {
         _markers.add(
           Marker(
-            markerId: MarkerId('UK_Location_$i'),
-            position: _ukLocations[i],
-            infoWindow: InfoWindow(title: 'Location ${i + 1}'),
+            markerId: MarkerId(festival.id.toString()),
+            infoWindow: InfoWindow(title: festival.nameOrganizer ?? festival.description,),
+            position: LatLng(double.parse(festival.latitude), double.parse(festival.longitude)),
             icon: _customMarkerIcon ?? BitmapDescriptor.defaultMarker,
-            onTap: ()=>showMarkerInfo(context),
+            onTap: () => showMarkerInfo(context, festival),
           ),
         );
       }
 
-      _controller.animateCamera(CameraUpdate.newLatLngZoom(latLng, 10));
+      _controller.animateCamera(CameraUpdate.newLatLngZoom(userLocation!, 10));
     } catch (e) {
       print("Error setting up map: $e");
     }
   }
+  double _calculateDistance(LatLng start, LatLng end) {
+    return Geolocator.distanceBetween(
+        start.latitude, start.longitude, end.latitude, end.longitude);
+  }
+  FestivalResource? _findNearestFestival() {
+    final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
 
-  // Asynchronous operation to fetch custom marker icon
+    if (userLocation == null || festivalProvider.festivals.isEmpty) return null;
+
+    FestivalResource? nearestFestival;
+    double minDistance = double.infinity;
+
+    for (final festival in festivalProvider.festivals) {
+      // Attempt to parse latitude and longitude safely
+      final double? latitude = double.tryParse(festival.latitude);
+      final double? longitude = double.tryParse(festival.longitude);
+
+      // Skip if either latitude or longitude is invalid
+      if (latitude != null && longitude != null) {
+        double distance = _calculateDistance(
+          userLocation!,
+          LatLng(latitude, longitude),
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestFestival = festival;
+        }
+      }
+    }
+    return nearestFestival;
+  }
+
+
   Future<void> _fetchCustomMarker() async {
     try {
       _customMarkerIcon = await getCustomMarker();
@@ -108,25 +145,27 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        "This feature is in development.",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      duration: Duration(seconds: 3),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: Colors.black,
-                      action: SnackBarAction(
-                        label: "OK",
-                        textColor: Colors.orange,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        },
-                      ),
-                    ),
-                  );
+                onTap: () async {
+                  FestivalResource? nearestFestival = _findNearestFestival();
+                  if (nearestFestival != null) {
+                    LatLng festivalLatLng = LatLng(
+                        double.parse(nearestFestival.latitude),
+                        double.parse(nearestFestival.longitude));
+                    _controller.animateCamera(
+                        CameraUpdate.newLatLngZoom(festivalLatLng, 13));
+                    setState(() {
+                      _markers.add(
+                        Marker(
+                          icon: _customMarkerIcon ??
+                              BitmapDescriptor.defaultMarker,
+                          markerId: MarkerId("nearestFestival"),
+                          position: festivalLatLng,
+                          infoWindow: InfoWindow(
+                              title: nearestFestival.nameOrganizer ??nearestFestival.description ),
+                        ),
+                      );
+                    });
+                  }
                 },
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8, right: 8),

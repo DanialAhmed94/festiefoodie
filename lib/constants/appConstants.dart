@@ -1,4 +1,7 @@
 class AppConstants{
+  static String baseUrl = "https://stagingcrapadvisor.semicolonstech.com/api";
+  static String festivalImageUrl = "https://stagingcrapadvisor.semicolonstech.com/asset/festivals/";
+
   static String splashBackground = "assets/images/splash.png";
   static String scaffoldBackground = "assets/svgs/scaffoldBackground.svg";
   static String authenitactionscaffoldBackground = "assets/images/authenticationBackground.png";

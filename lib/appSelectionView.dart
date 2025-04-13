@@ -1,4 +1,6 @@
 import 'package:festiefoodie/utilities/scaffoldBackground.dart';
+import 'package:festiefoodie/utilities/sharedPrefs.dart';
+import 'package:festiefoodie/views/foodieStall/foofieStallHome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -34,8 +36,24 @@ class Appselectionview extends StatelessWidget {
               // First App Card
               Expanded(
                 child: GestureDetector(
-                  onTap: () => Navigator.push(
-                      context, FadePageRouteBuilder(widget: LoginView())),
+                  onTap: () async {
+                    final isLoggedIn = await getIsLogedIn();
+
+                    if (isLoggedIn == true) {
+                      // Navigate directly to stall home
+                      Navigator.push(
+                        context,
+                        FadePageRouteBuilder(widget: FoodieStallHome()),
+                      );
+                    } else {
+                      // Navigate to login screen
+                      Navigator.push(
+                        context,
+                        FadePageRouteBuilder(widget: LoginView()),
+                      );
+                    }
+                  },
+
                   child: Container(
                     // 25% of screen height
                     margin: EdgeInsets.only(right: padding / 2),

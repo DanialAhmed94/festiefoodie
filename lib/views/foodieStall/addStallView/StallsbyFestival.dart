@@ -2,77 +2,104 @@ import 'package:festiefoodie/annim/transiton.dart';
 import 'package:festiefoodie/constants/appConstants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 
+import '../../../providers/stallProvider.dart';
 import '../../../utilities/scaffoldBackground.dart';
 
+class ViewAllStallsView extends StatefulWidget {
+  final String festivalId;
+  const ViewAllStallsView({Key? key, required this.festivalId})
+      : super(key: key);
 
+  @override
+  State<ViewAllStallsView> createState() => _ViewAllStallsViewState();
+}
 
-class ViewAllStallsView extends StatelessWidget {
-  const ViewAllStallsView({super.key});
+class _ViewAllStallsViewState extends State<ViewAllStallsView> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch stalls by festival on every visit.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<StallProvider>(context, listen: false)
+          .fetchStallsByFestival(context, widget.festivalId,isfromReviewSection: false);
+    });
+  }
 
+  @override
+  @override
   @override
   Widget build(BuildContext context) {
     return BackgroundScaffold(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            AppBar(
-              backgroundColor: Colors.transparent,
-              title: const Text(
-                "All Stalls",
-                style: TextStyle(
-                  fontFamily: "inter-semibold",
-                  fontSize: 32,
-                  color: Colors.white,
+      child: Consumer<StallProvider>(
+        builder: (context, stallProvider, child) {
+          Widget body;
+
+          if (stallProvider.isFetching && stallProvider.stallsByFestival.isEmpty) {
+            body = const Center(child: CircularProgressIndicator());
+          } else if (stallProvider.errorMessage != null &&
+              stallProvider.stallsByFestival.isEmpty) {
+            body = Center(
+              child: Text(
+                stallProvider.errorMessage!,
+                style: const TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            );
+          } else if (!stallProvider.isFetching &&
+              stallProvider.errorMessage == null &&
+              stallProvider.stallsByFestival.isEmpty) {
+            body = const Center(
+              child: Text(
+                "No stalls available.",
+                style: TextStyle(fontSize: 16),
+              ),
+            );
+          } else {
+            body = ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: stallProvider.stallsByFestival.length,
+              itemBuilder: (context, index) {
+                final stall = stallProvider.stallsByFestival[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildStallCard(
+                    context,
+                    MediaQuery.of(context).size.width * 0.95,
+                    stall.stallName,
+                  ),
+                );
+              },
+            );
+          }
+
+          return Column(
+            children: [
+              AppBar(
+                backgroundColor: Colors.transparent,
+                title: const Text(
+                  "All Stalls",
+                  style: TextStyle(
+                    fontFamily: "inter-semibold",
+                    fontSize: 32,
+                    color: Colors.white,
+                  ),
+                ),
+                centerTitle: true,
+                leading: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
                 ),
               ),
-              centerTitle: true,
-              leading: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
+              const SizedBox(height: 10),
+              Expanded(
+                child: body,
               ),
-            ),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Flavors on Wheels"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Grill & Thrill"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Nom Nom Nook"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Flavors on Wheels"),
-            SizedBox(height: 10),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Flavors on Wheels"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Grill & Thrill"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Nom Nom Nook"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Flavors on Wheels"),
-            SizedBox(height: 10),
-
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Flavors on Wheels"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Grill & Thrill"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Nom Nom Nook"),
-            SizedBox(height: 10),
-            _buildStallCard(context, MediaQuery.of(context).size.width * 0.95,
-                "Flavors on Wheels"),
-            SizedBox(height: 10),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -89,32 +116,32 @@ class ViewAllStallsView extends StatelessWidget {
               elevation: 5,
               child: Container(
                 width: width,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white,
                 ),
                 child: Row(
                   children: [
-                    SizedBox(width: 90), // Space for SVG
+                    const SizedBox(width: 90), // Reserved space for left border.
                     Expanded(
                       child: Text(
                         title,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: "inter-semibold",
                           fontSize: 18,
                           color: Colors.black,
                         ),
                       ),
                     ),
-                    SizedBox(width: 10), // Space between text & button
+                    const SizedBox(width: 10),
                     SizedBox(
                       height: 36,
                       child: ElevatedButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
+                              content: const Text(
                                 "This feature is in development phase.",
                                 style: TextStyle(
                                   fontFamily: "inter-medium",
@@ -127,9 +154,7 @@ class ViewAllStallsView extends StatelessWidget {
                               action: SnackBarAction(
                                 label: "OK",
                                 textColor: Colors.orange,
-                                onPressed: () {
-                                  // Dismiss the snackbar
-                                },
+                                onPressed: () {},
                               ),
                             ),
                           );
@@ -139,9 +164,9 @@ class ViewAllStallsView extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
-                        child: Text(
+                        child: const Text(
                           "View Detail",
                           style: TextStyle(
                             fontFamily: "inter-medium",
@@ -160,7 +185,7 @@ class ViewAllStallsView extends StatelessWidget {
               top: 0,
               bottom: 0,
               child: ClipRRect(
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   bottomLeft: Radius.circular(16),
                 ),
@@ -181,3 +206,5 @@ class ViewAllStallsView extends StatelessWidget {
     );
   }
 }
+
+

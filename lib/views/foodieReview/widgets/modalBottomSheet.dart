@@ -1,11 +1,19 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:festiefoodie/annim/transiton.dart';
 import 'package:flutter/material.dart';
 import 'package:festiefoodie/constants/appConstants.dart';
 
-import '../foodReviewViews/festivalStalls.dart';
-import '../givenRatings/festivalStallsForRattings.dart';
+import '../../../models/festivalModel.dart';
+import '../addingFoodReviewViews/festivalStalls.dart';
+import '../checkRatingsViews/festivalStallsForRattings.dart';
 
-showMarkerInfo(BuildContext context) {
+showMarkerInfo(BuildContext context, FestivalResource festival) {
+  DateTime startingDate = DateTime.parse(festival.startingDate);
+
+  String year = startingDate.year.toString();
+  String month = startingDate.month.toString().padLeft(2, '0');
+  String day = startingDate.day.toString().padLeft(2, '0');
+
   showModalBottomSheet(
     context: context,
     shape: RoundedRectangleBorder(
@@ -40,41 +48,41 @@ showMarkerInfo(BuildContext context) {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Bath Literature Festival",
+                          festival.nameOrganizer ?? festival.description,
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                        Text(
-                          "Pak life",
-                          style: TextStyle(fontSize: 14, color: Colors.white),
-                        ),
+                        // Text(
+                        //   "Pak life Pak life Pak lifePak life Pak lifePak life",
+                        //   style: TextStyle(fontSize: 14, color: Colors.white),
+                        // ),
                       ],
                     ),
                   ),
                 ),
-                Positioned(
-                  right: 0,
-                  top: 10,
-                  child: Column(
-                    children: [
-                      Text(
-                        "TIME",
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
-                      ),
-                      Text(
-                        "14 : 33",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Positioned(
+                //   right: 0,
+                //   top: 10,
+                //   child: Column(
+                //     children: [
+                //       Text(
+                //         "TIME",
+                //         style: TextStyle(fontSize: 12, color: Colors.black54),
+                //       ),
+                //       Text(
+                //         festival.time != null ? festival.time! : "-- : --",
+                //         style: TextStyle(
+                //           fontSize: 18,
+                //           fontWeight: FontWeight.bold,
+                //           color: Colors.orange,
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
               ],
             ),
             SizedBox(height: 10),
@@ -102,20 +110,28 @@ showMarkerInfo(BuildContext context) {
                   SizedBox(width: 10),
                   Row(
                     children: [
-                      _buildDateBox("2"),
-                      _buildDateBox("0"),
-                      _buildDateBox("2"),
-                      _buildDateBox("5"),
+                      _buildDateBox(day[0]),
+                      _buildDateBox(day[1]),
                       SizedBox(width: 5),
-                      Text(":",style: TextStyle(color: Colors.orange,fontWeight: FontWeight.bold,fontSize: 16),),
+                      Text(":",
+                          style: TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
                       SizedBox(width: 5),
-                      _buildDateBox("0"),
-                      _buildDateBox("2"),
+                      _buildDateBox(month[0]),
+                      _buildDateBox(month[1]),
                       SizedBox(width: 5),
-                      Text(":",style: TextStyle(color: Colors.orange,fontWeight: FontWeight.bold,fontSize: 16)),
+                      Text(":",
+                          style: TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
                       SizedBox(width: 5),
-                      _buildDateBox("2"),
-                      _buildDateBox("5"),
+                      _buildDateBox(year[0]),
+                      _buildDateBox(year[1]),
+                      _buildDateBox(year[2]),
+                      _buildDateBox(year[3]),
                     ],
                   ),
                 ],
@@ -134,7 +150,12 @@ showMarkerInfo(BuildContext context) {
                       width: MediaQuery.of(context).size.width * 0.4,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.push(context, FadePageRouteBuilder(widget: FestivalStalls()));
+                          Navigator.push(
+                              context,
+                              FadePageRouteBuilder(
+                                  widget: FestivalStalls(
+                                festivalId: festival.id.toString(),
+                              )));
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
@@ -155,9 +176,10 @@ showMarkerInfo(BuildContext context) {
                       width: MediaQuery.of(context).size.width * 0.4,
                       child: ElevatedButton(
                         onPressed: () {
-
-                          Navigator.push(context, FadePageRouteBuilder(widget: FestivalStallsForRatings()));
-
+                          Navigator.push(
+                              context,
+                              FadePageRouteBuilder(
+                                  widget: FestivalStallsForRatings()));
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
@@ -179,12 +201,27 @@ showMarkerInfo(BuildContext context) {
                 Expanded(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      AppConstants.dummyFestivalImage,
-                      height: 100,
+                    child: CachedNetworkImage(
+                      imageUrl: AppConstants.festivalImageUrl + festival.image,
+                      height: 150,
                       fit: BoxFit.cover,
+                      // Placeholder (shown while the image is loading)
+                      placeholder: (context, url) => SizedBox(
+                        height: 150,
+                        child: Center(
+                          child: CircularProgressIndicator(color: Colors.orange),
+                        ),
+                      ),
+                      // Error widget (shown if the image failed to load)
+                      errorWidget: (context, url, error) => SizedBox(
+                        height: 150,
+                        child: Center(
+                          child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                        ),
+                      ),
                     ),
                   ),
+
                 ),
               ],
             ),

@@ -1,13 +1,20 @@
 import 'dart:io';
 
 import 'package:festiefoodie/constants/appConstants.dart';
+import 'package:festiefoodie/providers/eventProvider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import '../../../annim/transiton.dart';
+import '../../../apis/stallManagment/addStall_api.dart';
+import '../../../models/festivalModel.dart';
+import '../../../models/menuItemModel.dart';
+import '../../../providers/festivalProvider.dart';
 import '../../../utilities/scaffoldBackground.dart';
 import '../mapViews/LocationMap.dart';
+import '../../../utilities/dilalogBoxes.dart'; // Contains showErrorDialog()
 
 class AddStallView extends StatefulWidget {
   const AddStallView({super.key});
@@ -17,22 +24,11 @@ class AddStallView extends StatefulWidget {
 }
 
 class _AddStallViewState extends State<AddStallView> {
+  String? _selectedFestivalId;
+  String? _selectedEventId;
+
   XFile? _selectedImage;
   bool _isImageSelected = true;
-  String? selectedFestival;
-  final List<String> festivals = [
-    "Glastonbury Festival",
-    "Reading Festival",
-    "Isle of Wight Festival",
-    "Download Festival"
-  ];
-  String? selectedEent;
-  final List<String> events = [
-    "Glastonbury Festival",
-    "Reading Festival",
-    "Isle of Wight Festival",
-    "Download Festival"
-  ];
   TextEditingController _stallNameController = TextEditingController();
   TextEditingController _latitudeController = TextEditingController();
   TextEditingController _longitudeController = TextEditingController();
@@ -42,6 +38,8 @@ class _AddStallViewState extends State<AddStallView> {
   TextEditingController _closingTimeController = TextEditingController();
 
   List<MenuItem> menuItems = [];
+
+  bool _isSubmitting = false; // Flag for API call status
 
   @override
   void initState() {
@@ -57,6 +55,13 @@ class _AddStallViewState extends State<AddStallView> {
       item.dishNameController.dispose();
       item.priceController.dispose();
     }
+    _stallNameController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
+    _openingTimeController.dispose();
+    _closingTimeController.dispose();
     super.dispose();
   }
 
@@ -87,6 +92,89 @@ class _AddStallViewState extends State<AddStallView> {
         _selectedImage = image;
         _isImageSelected = true;
       });
+    }
+  }
+
+  /// Validate fields and call the API
+  Future<void> _submitStall() async {
+    // Validate required fields (selected event is optional)
+    if (_selectedFestivalId == null) {
+      showErrorDialog(context, "Please select a festival", []);
+      return;
+    }
+    if (_stallNameController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please enter a stall name", []);
+      return;
+    }
+    if (_latitudeController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please enter latitude", []);
+      return;
+    }
+    if (_longitudeController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please enter longitude", []);
+      return;
+    }
+    if (_startDateController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please select a start date", []);
+      return;
+    }
+    if (_endDateController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please select an end date", []);
+      return;
+    }
+    if (_openingTimeController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please select opening time", []);
+      return;
+    }
+    if (_closingTimeController.text.trim().isEmpty) {
+      showErrorDialog(context, "Please select closing time", []);
+      return;
+    }
+    // Ensure at least one valid menu item is added.
+    bool hasValidMenuItem = false;
+    for (var item in menuItems) {
+      if (item.dishNameController.text.trim().isNotEmpty &&
+          item.priceController.text.trim().isNotEmpty) {
+        hasValidMenuItem = true;
+        break;
+      }
+    }
+    if (!hasValidMenuItem) {
+      showErrorDialog(context, "Please add at least one menu item", []);
+      return;
+    }
+    if (_selectedImage == null) {
+      setState(() {
+        _isImageSelected = false;
+      });
+      showErrorDialog(context, "Please select an image", []);
+      return;
+    }
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await addStallApi(
+        context,
+        festivalId: _selectedFestivalId!,
+        eventId: _selectedEventId ?? "",
+        stallName: _stallNameController.text.trim(),
+        latitude: _latitudeController.text.trim(),
+        longitude: _longitudeController.text.trim(),
+        fromDate: _startDateController.text.trim(),
+        toDate: _endDateController.text.trim(),
+        openingTime: _openingTimeController.text.trim(),
+        closingTime: _closingTimeController.text.trim(),
+        image: _selectedImage,
+        menuItems: menuItems,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -136,29 +224,76 @@ class _AddStallViewState extends State<AddStallView> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          prefixIcon: SvgPicture.asset(
-                              AppConstants.festivalPrefix,
-                              color: Color(0xFFF96222)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        value: selectedFestival,
-                        hint: const Text("Choose a festival"),
-                        items: festivals.map((festival) {
-                          return DropdownMenuItem(
-                            value: festival,
-                            child: Text(festival),
+                      // 1) Use Consumer to watch isFetching & festivals
+                      Consumer<FestivalProvider>(
+                        builder: (context, festivalProvider, child) {
+                          return DropdownButtonFormField<String>(
+                            key: Key(festivalProvider.isFetching.toString()),
+                            value: _selectedFestivalId,
+                            onTap: () async {
+                              if (festivalProvider.festivals.isEmpty &&
+                                  !festivalProvider.isFetching) {
+                                await festivalProvider.fetchFestivals(context);
+                              }
+                            },
+                            hint: const Text("Choose a festival"),
+                            decoration: InputDecoration(
+                              prefixIcon: SvgPicture.asset(
+                                AppConstants.festivalPrefix,
+                                color: const Color(0xFFF96222),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            items: festivalProvider.isFetching
+                                ? [
+                              DropdownMenuItem<String>(
+                                value: null,
+                                enabled: false,
+                                child: Row(
+                                  children: const [
+                                    SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text("Loading festivals..."),
+                                  ],
+                                ),
+                              ),
+                            ]
+                                : festivalProvider.festivals.isNotEmpty
+                                ? festivalProvider.festivals.map((festival) {
+                              return DropdownMenuItem<String>(
+                                value: festival.id.toString(),
+                                child: Text(
+                                  festival.nameOrganizer ??
+                                      festival.description,),
+                              );
+                            }).toList()
+                                : [
+                              DropdownMenuItem<String>(
+                                value: null,
+                                enabled: false,
+                                child: const Text("No festivals found"),
+                              ),
+                            ],
+                            onChanged: (newValue) {
+                              setState(() {
+                                _selectedFestivalId = newValue;
+                                _selectedEventId = null;
+                              });
+                              if (newValue != null) {
+                                Provider.of<EventProvider>(context, listen: false)
+                                    .fetchEvents(context, newValue);
+                              }
+                            },
                           );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedFestival = value;
-                          });
                         },
                       ),
                       const SizedBox(height: 10),
@@ -170,36 +305,63 @@ class _AddStallViewState extends State<AddStallView> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          prefixIcon: SvgPicture.asset(
-                              AppConstants.festivalPrefix,
-                              height: 10,
-                              width: 10,
-                              color: Color(0xFFF96222)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        value: selectedFestival,
-                        hint: const Text(" Choose a event"),
-                        items: events.map((event) {
-                          return DropdownMenuItem(
-                            value: event,
-                            child: Text(event),
+                      Consumer<EventProvider>(
+                        builder: (context, eventProvider, child) {
+                          // If no festival is selected, show disabled dropdown
+                          if (_selectedFestivalId == null) {
+                            return _buildDisabledDropdown("Select festival first");
+                          }
+
+                          // If still fetching, show "Loading events..."
+                          if (eventProvider.isFetching) {
+                            return _buildDisabledDropdown("Loading events...");
+                          }
+
+                          // If done fetching but the list is empty
+                          if (eventProvider.events.isEmpty) {
+                            return _buildDisabledDropdown("No events found");
+                          }
+
+                          // Otherwise, show the real dropdown
+                          return DropdownButtonFormField<String>(
+                            value: _selectedEventId,
+                            hint: const Text("Choose an event"),
+                            decoration: InputDecoration(
+                              prefixIcon: SvgPicture.asset(
+                                AppConstants.festivalPrefix,
+                                color: const Color(0xFFF96222),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            items: eventProvider.events.map((event) {
+                              return DropdownMenuItem<String>(
+                                value: event.id.toString(),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                    MediaQuery.of(context).size.width * 0.6,
+                                  ),
+                                  child: Text(
+                                    event.eventTitle ?? "",
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                              setState(() {
+                                _selectedEventId = newValue;
+                              });
+                            },
                           );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedEent = value;
-                          });
                         },
                       ),
                       const SizedBox(height: 10),
-
-                      // Stall Name Input
                       const Text(
                         "Stall Name",
                         style: TextStyle(
@@ -219,19 +381,12 @@ class _AddStallViewState extends State<AddStallView> {
                           ),
                           prefixIcon: Padding(
                             padding: const EdgeInsets.all(12.0),
-                            // Adjust padding for better alignment
-                            child: SvgPicture.asset(
-                                AppConstants.stallNamePrefix,
-                                // Ensure you have an appropriate icon for stalls
-                                color: Color(0xFFF96222)
-                                // Use your theme color
-                                ),
+                            child: SvgPicture.asset(AppConstants.stallNamePrefix,
+                                color: const Color(0xFFF96222)),
                           ),
                         ),
                       ),
                       const SizedBox(height: 10),
-
-                      SizedBox(height: 10),
                       const Text(
                         "Upload Image",
                         style: TextStyle(
@@ -239,7 +394,7 @@ class _AddStallViewState extends State<AddStallView> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       GestureDetector(
                         onTap: _pickImage,
                         child: Container(
@@ -253,43 +408,46 @@ class _AddStallViewState extends State<AddStallView> {
                                 color: Colors.black.withOpacity(0.25),
                                 blurRadius: 4.0,
                                 spreadRadius: 0,
-                                offset: Offset(0, 4),
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
                           child: Center(
                             child: _selectedImage == null
                                 ? SvgPicture.asset(AppConstants.addImageIcon,
-                                    color: Color(0xFFF96222))
+                                color: const Color(0xFFF96222))
                                 : ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.file(
-                                      File(_selectedImage!.path),
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                                  ),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.file(
+                                File(_selectedImage!.path),
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
-                          Spacer(),
-                          Text(
+                          const Spacer(),
+                          const Text(
                             "Open Map",
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           GestureDetector(
                             onTap: () async {
                               final result = await Navigator.push(
                                 context,
-                                FadePageRouteBuilder(widget: GoogleMapView(isFromFestival: false,)),
+                                FadePageRouteBuilder(
+                                    widget: GoogleMapView(
+                                      isFromFestival: false,
+                                    )),
                               );
                               if (result != null) {
                                 setState(() {
@@ -298,7 +456,6 @@ class _AddStallViewState extends State<AddStallView> {
                                 });
                               }
                             },
-
                             child: Image.asset(AppConstants.mapPreview),
                           ),
                         ],
@@ -312,7 +469,6 @@ class _AddStallViewState extends State<AddStallView> {
                         ),
                       ),
                       const SizedBox(height: 10),
-
                       TextFormField(
                         controller: _latitudeController,
                         decoration: InputDecoration(
@@ -336,7 +492,7 @@ class _AddStallViewState extends State<AddStallView> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -346,7 +502,7 @@ class _AddStallViewState extends State<AddStallView> {
                               _startDateController,
                             ),
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: buildDateField(
                               context,
@@ -356,10 +512,10 @@ class _AddStallViewState extends State<AddStallView> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       buildTimeField(
                           context, "Opening Time", _openingTimeController),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       buildTimeField(
                           context, "Closing Time", _closingTimeController),
                       const SizedBox(height: 10),
@@ -390,7 +546,7 @@ class _AddStallViewState extends State<AddStallView> {
                                         fillColor: Colors.white,
                                         border: OutlineInputBorder(
                                           borderRadius:
-                                              BorderRadius.circular(8),
+                                          BorderRadius.circular(8),
                                         ),
                                       ),
                                     ),
@@ -405,7 +561,7 @@ class _AddStallViewState extends State<AddStallView> {
                                         fillColor: Colors.white,
                                         border: OutlineInputBorder(
                                           borderRadius:
-                                              BorderRadius.circular(8),
+                                          BorderRadius.circular(8),
                                         ),
                                       ),
                                       keyboardType: TextInputType.number,
@@ -432,39 +588,27 @@ class _AddStallViewState extends State<AddStallView> {
                                 style: TextStyle(color: Colors.white)),
                           ),
                           const SizedBox(height: 10),
+                          // Submit Button with CircularProgressIndicator when loading
                           GestureDetector(
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    "This feature is in development phase.",
-                                    style: TextStyle(
-                                      fontFamily: "inter-medium",
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  backgroundColor: Colors.black87,
-                                  behavior: SnackBarBehavior.floating,
-                                  action: SnackBarAction(
-                                    label: "OK",
-                                    textColor: Colors.orange,
-                                    onPressed: () {
-                                      // Dismiss the snackbar
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
+                            onTap: _isSubmitting ? null : _submitStall,
                             child: Container(
                               width: double.infinity,
-                              padding: EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               decoration: BoxDecoration(
-                                color: Color(0xFFFF6900),
+                                color: const Color(0xFFFF6900),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Center(
-                                child: Text(
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                    : const Text(
                                   "Submit",
                                   style: TextStyle(
                                     color: Colors.white,
@@ -489,6 +633,22 @@ class _AddStallViewState extends State<AddStallView> {
     );
   }
 
+  Widget _buildDisabledDropdown(String hintText) {
+    return DropdownButtonFormField<String>(
+      items: const [],
+      onChanged: null,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        hintText: hintText,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
   Widget buildDateField(
       BuildContext context, String label, TextEditingController controller) {
     return Column(
@@ -496,12 +656,12 @@ class _AddStallViewState extends State<AddStallView> {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         GestureDetector(
           onTap: () async {
             final DateTime? pickedDate = await showDatePicker(
@@ -521,18 +681,18 @@ class _AddStallViewState extends State<AddStallView> {
               height: 70,
               child: TextFormField(
                 controller: controller,
-                style: TextStyle(fontSize: 14.0),
+                style: const TextStyle(fontSize: 14.0),
                 decoration: InputDecoration(
-                  prefixIconConstraints: BoxConstraints(
+                  prefixIconConstraints: const BoxConstraints(
                     minWidth: 30.0,
                     minHeight: 30.0,
                   ),
                   prefixIcon: Padding(
                     padding: const EdgeInsets.only(left: 8, right: 8),
                     child: SvgPicture.asset(AppConstants.calenderIcon,
-                        color: Color(0xFFF96222)),
+                        color: const Color(0xFFF96222)),
                   ),
-                  suffixIcon: Icon(Icons.arrow_drop_down_sharp),
+                  suffixIcon: const Icon(Icons.arrow_drop_down_sharp),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -547,7 +707,8 @@ class _AddStallViewState extends State<AddStallView> {
                     borderRadius: BorderRadius.circular(30.0),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16.0),
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16.0),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -569,8 +730,9 @@ class _AddStallViewState extends State<AddStallView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        SizedBox(height: 10),
+            style:
+            const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
         GestureDetector(
           onTap: () async {
             final TimeOfDay? pickedTime = await showTimePicker(
@@ -604,14 +766,4 @@ class _AddStallViewState extends State<AddStallView> {
       ),
     );
   }
-}
-
-class MenuItem {
-  final TextEditingController dishNameController;
-  final TextEditingController priceController;
-
-  MenuItem({
-    required this.dishNameController,
-    required this.priceController,
-  });
 }

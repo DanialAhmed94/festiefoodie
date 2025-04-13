@@ -3,9 +3,11 @@ import 'package:festiefoodie/views/foodieStall/authViews/signupView.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:festiefoodie/constants/appConstants.dart';
+import '../../../apis/authentication/login.dart';
 import '../../../utilities/authenticationBackground.dart';
 import '../foofieStallHome.dart';
 
+// 1) Add an _isLoading boolean to track API call state
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -23,11 +25,12 @@ class _LoginViewState extends State<LoginView> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  // 1) This will let us show/hide the progress indicator
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
-
-    // Add listeners to focus nodes to scroll to the field
     _emailFocus.addListener(() => _scrollToFocusedField(_emailFocus));
     _passwordFocus.addListener(() => _scrollToFocusedField(_passwordFocus));
   }
@@ -46,8 +49,8 @@ class _LoginViewState extends State<LoginView> {
     if (focusNode.hasFocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollController.animateTo(
-          150.0, // Adjust this value based on the position of your fields
-          duration: Duration(milliseconds: 300),
+          150.0, // Adjust this value based on your layout
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
       });
@@ -77,18 +80,18 @@ class _LoginViewState extends State<LoginView> {
                     focusNode: _emailFocus,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Color(0xFF272727).withOpacity(0.2),
+                      fillColor: const Color(0xFF272727).withOpacity(0.2),
                       hintText: 'Email',
-                      hintStyle: TextStyle(color: Colors.black26),
+                      hintStyle: const TextStyle(color: Colors.black26),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      prefixIcon: Icon(Icons.email, color: Colors.white),
+                      prefixIcon: const Icon(Icons.email, color: Colors.white),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    style: TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Colors.black),
                     onEditingComplete: () {
                       FocusScope.of(context).requestFocus(_passwordFocus);
                     },
@@ -102,18 +105,18 @@ class _LoginViewState extends State<LoginView> {
                     obscureText: true,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Color(0xFF272727).withOpacity(0.2),
+                      fillColor: const Color(0xFF272727).withOpacity(0.2),
                       hintText: 'Password',
-                      hintStyle: TextStyle(color: Colors.black26),
+                      hintStyle: const TextStyle(color: Colors.black26),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      prefixIcon: Icon(Icons.lock, color: Colors.white),
+                      prefixIcon: const Icon(Icons.lock, color: Colors.white),
                     ),
                     keyboardType: TextInputType.visiblePassword,
                     textInputAction: TextInputAction.done,
-                    style: TextStyle(color: Colors.black),
+                    style: const TextStyle(color: Colors.black),
                   ),
                 ],
               ),
@@ -122,16 +125,30 @@ class _LoginViewState extends State<LoginView> {
 
             // Sign In Button
             GestureDetector(
-              onTap: ()=>Navigator.push(context,FadePageRouteBuilder(widget: FoodieStallHome())),
+              // 2) Make onTap async, call LogInApi, toggle _isLoading
+              onTap: () async {
+                setState(() => _isLoading = true);
+
+                await LogInApi(
+                  context,
+                  _emailController.text.trim(),
+                  _passwordController.text.trim(),
+                );
+
+                setState(() => _isLoading = false);
+              },
               child: Container(
                 width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
-                  color: Color(0xFFFF6900),
+                  color: const Color(0xFFFF6900),
                   borderRadius: BorderRadius.circular(12),
                 ),
+                // 3) Conditionally show CircularProgressIndicator or "Sign In"
                 child: Center(
-                  child: Text(
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text(
                     "Sign In",
                     style: TextStyle(
                       color: Colors.white,
@@ -142,25 +159,25 @@ class _LoginViewState extends State<LoginView> {
                 ),
               ),
             ),
-            SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
+
             RichText(
               text: TextSpan(
                 text: "Don’t have an account? ",
-                style: TextStyle(color: Colors.black, fontSize: 16),
-                // Normal text style
+                style: const TextStyle(color: Colors.black, fontSize: 16),
                 children: [
                   TextSpan(
                     text: "Create account",
-                    style: TextStyle(
-                      color: Color(0xFFFF6900), // Tapable text color
+                    style: const TextStyle(
+                      color: Color(0xFFFF6900),
                       fontWeight: FontWeight.bold,
                     ),
                     recognizer: TapGestureRecognizer()
                       ..onTap = () {
-                        Navigator.push(context,
-                            FadePageRouteBuilder(widget: SignupView()));
+                        Navigator.push(
+                          context,
+                          FadePageRouteBuilder(widget: const SignupView()),
+                        );
                       },
                   ),
                 ],
