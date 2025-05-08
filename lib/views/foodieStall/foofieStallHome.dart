@@ -8,10 +8,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../models/allStallsCollectionModel.dart';
 import '../../providers/stallProvider.dart';
 import '../../utilities/scaffoldBackground.dart';
 import '../../utilities/sharedPrefs.dart';
 import 'addStallView/addStallView.dart';
+import 'addStallView/stallDetailView.dart';
 
 class FoodieStallHome extends StatefulWidget {
   const FoodieStallHome({super.key});
@@ -153,7 +155,7 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                       child: _buildStallCard(
                         context,
                         MediaQuery.of(context).size.width * 0.95,
-                        stall.stallName, // Display the stall name dynamically
+                        stall.stallName,stall // Display the stall name dynamically
                       ),
                     );
                   },
@@ -166,7 +168,7 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
     );
   }
 
-  Widget _buildStallCard(BuildContext context, double width, String title) {
+  Widget _buildStallCard(BuildContext context, double width, String title, Stall stall) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
@@ -201,25 +203,17 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                       height: 36,
                       child: ElevatedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                "This feature is in development phase.",
-                                style: TextStyle(
-                                  fontFamily: "inter-medium",
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              backgroundColor: Colors.black87,
-                              behavior: SnackBarBehavior.floating,
-                              action: SnackBarAction(
-                                label: "OK",
-                                textColor: Colors.orange,
-                                onPressed: () {},
-                              ),
-                            ),
-                          );
+                          Navigator.push(
+                              context,
+                              FadePageRouteBuilder(
+                                  widget: StallDetailView(
+                                    closingTime: stall.closingTime,
+                                    festivalName: stall.festivalName,
+                                    endDate: stall.toDate,
+                                    startDate: stall.fromDate,
+                                    longitude: stall.longitude,
+                                    latitude: stall.latitude,imageUrl: stall.image,openingTime: stall.openingTime,stallName: stall.stallName,
+                                  )));
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,

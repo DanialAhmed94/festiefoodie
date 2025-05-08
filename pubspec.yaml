@@ -52,6 +52,13 @@ dependencies:
   provider: ^6.1.2
   cached_network_image: ^3.2.1
   flutter_image_compress: ^2.4.0
+  carousel_slider: ^5.0.0
+  smooth_page_indicator: ^1.1.0
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  firebase_analytics: ^11.3.3
+  dots_indicator: ^2.0.0
+  logging: ^1.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

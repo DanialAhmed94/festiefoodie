@@ -5,7 +5,7 @@ import 'package:festiefoodie/constants/appConstants.dart';
 
 import '../../../models/festivalModel.dart';
 import '../addingFoodReviewViews/festivalStalls.dart';
-import '../checkRatingsViews/festivalStallsForRattings.dart';
+import '../seeRatings/stallsByFestival.dart';
 
 showMarkerInfo(BuildContext context, FestivalResource festival) {
   DateTime startingDate = DateTime.parse(festival.startingDate);
@@ -179,7 +179,7 @@ showMarkerInfo(BuildContext context, FestivalResource festival) {
                           Navigator.push(
                               context,
                               FadePageRouteBuilder(
-                                  widget: FestivalStallsForRatings()));
+                                  widget: StallsByFestival(festivalId: festival.id.toString(),)));
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,

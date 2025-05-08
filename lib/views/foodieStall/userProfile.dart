@@ -4,7 +4,9 @@ import 'package:festiefoodie/views/foodieStall/addStallView/viewallFestivals.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../apis/updateProfile.dart';
 import '../../utilities/scaffoldBackground.dart';
+import '../../utilities/sharedPrefs.dart';
 import 'addStallView/addStallView.dart';
 
 class UserProfile extends StatefulWidget {
@@ -16,6 +18,8 @@ class UserProfile extends StatefulWidget {
 
 class _UserProfileState extends State<UserProfile> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  String? userName;
+  String? email;
 
   final ScrollController _scrollController = ScrollController();
   final FocusNode _emailFocus = FocusNode();
@@ -27,10 +31,28 @@ class _UserProfileState extends State<UserProfile> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  bool isUpdating = false;
+  bool _obscureOldPassword = true;
+  bool _obscureNewPassword = true;
 
   @override
   void initState() {
     super.initState();
+    // Fetch the user name asynchronously.
+    getUserName().then((fetchedName) {
+      setState(() {
+        userName = fetchedName;
+        _usernameController.text = userName ?? "";// e.g. "John Doe"
+      });
+    });
+
+    getUserEmail().then((fetchedEmail) {
+      setState(() {
+        email = fetchedEmail;
+        _emailController.text = email ?? "";// e.g. "John Doe"
+
+      });
+    });
     // Add listeners to all focus nodes to scroll to the field when focused.
     _emailFocus.addListener(() => _scrollToFocusedField(_emailFocus));
     _usernameFocus.addListener(() => _scrollToFocusedField(_usernameFocus));
@@ -109,6 +131,7 @@ class _UserProfileState extends State<UserProfile> {
                         TextFormField(
                           controller: _emailController,
                           focusNode: _emailFocus,
+                          readOnly: true,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Color(0xFF272727).withOpacity(0.2),
@@ -132,6 +155,7 @@ class _UserProfileState extends State<UserProfile> {
                         TextFormField(
                           controller: _usernameController,
                           focusNode: _usernameFocus,
+                          readOnly: false,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Color(0xFF272727).withOpacity(0.2),
@@ -142,6 +166,7 @@ class _UserProfileState extends State<UserProfile> {
                               borderSide: BorderSide.none,
                             ),
                             prefixIcon: Icon(Icons.person, color: Colors.white),
+                            suffixIcon: Icon(Icons.edit, color: Colors.white),
                           ),
                           keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.next,
@@ -155,17 +180,28 @@ class _UserProfileState extends State<UserProfile> {
                         TextFormField(
                           controller: _passwordController,
                           focusNode: _passwordFocus,
-                          obscureText: true,
+                          obscureText: _obscureOldPassword,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Color(0xFF272727).withOpacity(0.2),
-                            hintText: 'Password',
+                            hintText: 'Old Password',
                             hintStyle: TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
                             prefixIcon: Icon(Icons.lock, color: Colors.white),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureOldPassword ? Icons.visibility_off : Icons.visibility,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureOldPassword = !_obscureOldPassword;
+                                });
+                              },
+                            ),
                           ),
                           keyboardType: TextInputType.visiblePassword,
                           textInputAction: TextInputAction.next,
@@ -179,17 +215,28 @@ class _UserProfileState extends State<UserProfile> {
                         TextFormField(
                           controller: _confirmPasswordController,
                           focusNode: _confirmPasswordFocus,
-                          obscureText: true,
+                          obscureText: _obscureNewPassword,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Color(0xFF272727).withOpacity(0.2),
-                            hintText: 'Confirm Password',
+                            hintText: 'New Password',
                             hintStyle: TextStyle(color: Colors.black26),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
                             prefixIcon: Icon(Icons.lock_outline, color: Colors.white),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureNewPassword ? Icons.visibility_off : Icons.visibility,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureNewPassword = !_obscureNewPassword;
+                                });
+                              },
+                            ),
                           ),
                           keyboardType: TextInputType.visiblePassword,
                           textInputAction: TextInputAction.done,
@@ -204,7 +251,68 @@ class _UserProfileState extends State<UserProfile> {
                   const SizedBox(height: 30),
                   // Sign In Button
                   GestureDetector(
-                    // onTap: () => Navigator.push(context, FadePageRouteBuilder(widget: FoodieStallHome())),
+                    onTap: isUpdating
+                        ? null
+                        : () async {
+                      if (_usernameController.text.isEmpty ||
+                          _passwordController.text.isEmpty ||
+                          _confirmPasswordController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Please fill in all fields',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: Colors.black87,
+                            action: SnackBarAction(
+                              label: 'OK',
+                              textColor: Colors.orange,
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              },
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      if (_confirmPasswordController.text.trim().length < 8) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('New password must be at least 8 characters long', style: TextStyle(color: Colors.white)),
+                            backgroundColor: Colors.redAccent,
+                            behavior: SnackBarBehavior.floating,
+                            action: SnackBarAction(
+                              label: 'OK',
+                              textColor: Colors.white,
+                              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() {
+                        isUpdating = true;
+                      });
+
+                      try {
+                        await updateUserProfile(
+                          context,
+                          _usernameController.text.trim(),
+                          _passwordController.text.trim(),
+                          _confirmPasswordController.text.trim(),
+                        );
+                      } catch (e) {
+                        // Optionally handle unexpected errors
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            isUpdating = false;
+                          });
+                        }
+                      }
+                    },
                     child: Container(
                       width: double.infinity,
                       padding: EdgeInsets.symmetric(vertical: 16),
@@ -213,7 +321,11 @@ class _UserProfileState extends State<UserProfile> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
-                        child: Text(
+                        child:  isUpdating
+                            ?CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2.5,
+                        ):Text(
                           "Update",
                           style: TextStyle(
                             color: Colors.white,
@@ -235,7 +347,7 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   AppBar _buildAppBar() {
-    return AppBar(
+    return  AppBar(
       backgroundColor: Colors.transparent,
       title: const Text(
         "Edit Profile",
@@ -246,6 +358,10 @@ class _UserProfileState extends State<UserProfile> {
         ),
       ),
       centerTitle: true,
+      leading: IconButton(
+        onPressed: () => Navigator.pop(context),
+        icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
+      ),
     );
   }
 }

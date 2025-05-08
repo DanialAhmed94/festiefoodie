@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:logging/logging.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -25,6 +26,8 @@ class _ReviewState extends State<Review> {
   final TextEditingController _dateController = TextEditingController();
   // 1) This will let us show/hide the progress indicator
   bool _isLoading = false;
+  // Logging setup
+  final _logger = Logger('ReviewLogger');
 
   void initializeScores() {
     List<String> categories = [
@@ -222,9 +225,12 @@ class _ReviewState extends State<Review> {
     if (pickedFile != null) {
       setState(() {
         if (index == 1) {
-          _image1 = File(pickedFile.path);
+          _image1 = File(pickedFile.path);print("*******Image 1 picked: ${_image1?.path}");                         _logger.info("Submitting Image 2: ${_image2?.path}");
+          _logger.info("*******Image 2 picked: ${_image2?.path}");
+          // Debug log
         } else {
-          _image2 = File(pickedFile.path);
+          _image2 = File(pickedFile.path);        print("Image 2 picked: ${_image2?.path}");  // Debug log
+
         }
       });
     }
@@ -284,6 +290,12 @@ class _ReviewState extends State<Review> {
                       setState(() => _isLoading = true);
 
                       try {
+                        _logger.info("****************Submitting Image 2: ${_image2?.path}");
+                        print("****************Submitting Image 2: ${_image2?.path}");
+                        _logger.info("***********************Submitting Image 1: ${_image1?.path}");
+                        print("***********************Submitting Image 1: ${_image1?.path}");
+
+
                         // IMPORTANT: await the function
                         await submitReview(
                           context,

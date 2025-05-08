@@ -1,15 +1,24 @@
 import 'package:festiefoodie/providers/eventProvider.dart';
 import 'package:festiefoodie/providers/festivalProvider.dart';
 import 'package:festiefoodie/providers/menuProvider.dart';
+import 'package:festiefoodie/providers/ratingsProvider.dart';
 import 'package:festiefoodie/providers/stallProvider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'splashView.dart';
 
-void main() {
+void main() async{
+
+  //firebase
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+
   runApp((MultiProvider(providers: [
       ChangeNotifierProvider(create: (_) => FestivalProvider()),
+      ChangeNotifierProvider(create: (_) => RatingsProvider()),
       ChangeNotifierProvider(create: (_) => EventProvider()),
       ChangeNotifierProvider(create: (_) => StallProvider()),
       ChangeNotifierProvider(create: (_) => MenuProvider()),

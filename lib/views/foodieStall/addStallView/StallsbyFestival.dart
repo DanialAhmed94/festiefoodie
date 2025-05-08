@@ -1,14 +1,17 @@
 import 'package:festiefoodie/annim/transiton.dart';
 import 'package:festiefoodie/constants/appConstants.dart';
+import 'package:festiefoodie/views/foodieStall/addStallView/stallDetailView.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
+import '../../../models/allStallsCollectionModel.dart';
 import '../../../providers/stallProvider.dart';
 import '../../../utilities/scaffoldBackground.dart';
 
 class ViewAllStallsView extends StatefulWidget {
   final String festivalId;
+
   const ViewAllStallsView({Key? key, required this.festivalId})
       : super(key: key);
 
@@ -22,8 +25,9 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
     super.initState();
     // Fetch stalls by festival on every visit.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<StallProvider>(context, listen: false)
-          .fetchStallsByFestival(context, widget.festivalId,isfromReviewSection: false);
+      Provider.of<StallProvider>(context, listen: false).fetchStallsByFestival(
+          context, widget.festivalId,
+          isfromReviewSection: false);
     });
   }
 
@@ -36,7 +40,8 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
         builder: (context, stallProvider, child) {
           Widget body;
 
-          if (stallProvider.isFetching && stallProvider.stallsByFestival.isEmpty) {
+          if (stallProvider.isFetching &&
+              stallProvider.stallsByFestival.isEmpty) {
             body = const Center(child: CircularProgressIndicator());
           } else if (stallProvider.errorMessage != null &&
               stallProvider.stallsByFestival.isEmpty) {
@@ -66,10 +71,10 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _buildStallCard(
-                    context,
-                    MediaQuery.of(context).size.width * 0.95,
-                    stall.stallName,
-                  ),
+                      context,
+                      MediaQuery.of(context).size.width * 0.95,
+                      stall.stallName,
+                      stall),
                 );
               },
             );
@@ -104,7 +109,8 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
     );
   }
 
-  Widget _buildStallCard(BuildContext context, double width, String title) {
+  Widget _buildStallCard(
+      BuildContext context, double width, String title, Stall stall) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
@@ -116,14 +122,16 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
               elevation: 5,
               child: Container(
                 width: width,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white,
                 ),
                 child: Row(
                   children: [
-                    const SizedBox(width: 90), // Reserved space for left border.
+                    const SizedBox(width: 90),
+                    // Reserved space for left border.
                     Expanded(
                       child: Text(
                         title,
@@ -139,25 +147,36 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                       height: 36,
                       child: ElevatedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                "This feature is in development phase.",
-                                style: TextStyle(
-                                  fontFamily: "inter-medium",
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              backgroundColor: Colors.black87,
-                              behavior: SnackBarBehavior.floating,
-                              action: SnackBarAction(
-                                label: "OK",
-                                textColor: Colors.orange,
-                                onPressed: () {},
-                              ),
-                            ),
-                          );
+                          Navigator.push(
+                              context,
+                              FadePageRouteBuilder(
+                                  widget: StallDetailView(
+                                closingTime: stall.closingTime,
+                                festivalName: stall.festivalName,
+                                endDate: stall.toDate,
+                                startDate: stall.fromDate,
+                                longitude: stall.longitude,
+                                latitude: stall.latitude,imageUrl: stall.image,openingTime: stall.openingTime,stallName: stall.stallName,
+                              )));
+                          // ScaffoldMessenger.of(context).showSnackBar(
+                          //   SnackBar(
+                          //     content: const Text(
+                          //       "This feature is in development phase.",
+                          //       style: TextStyle(
+                          //         fontFamily: "inter-medium",
+                          //         fontSize: 14,
+                          //         color: Colors.white,
+                          //       ),
+                          //     ),
+                          //     backgroundColor: Colors.black87,
+                          //     behavior: SnackBarBehavior.floating,
+                          //     action: SnackBarAction(
+                          //       label: "OK",
+                          //       textColor: Colors.orange,
+                          //       onPressed: () {},
+                          //     ),
+                          //   ),
+                          // );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
@@ -206,5 +225,3 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
     );
   }
 }
-
-

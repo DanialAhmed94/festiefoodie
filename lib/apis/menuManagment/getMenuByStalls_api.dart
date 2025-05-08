@@ -32,8 +32,11 @@ Future<Menu?> getMenuByStall(
     );
 
     if (response.statusCode == 200) {
+      final bearerToken = await getToken();
+
       final jsonResponse = jsonDecode(response.body);
       debugPrint("Full JSON: $jsonResponse");
+      debugPrint("auth token: $bearerToken");
       return Menu.fromJson(jsonResponse);
     } else {
       final Map<String, dynamic> responseData = jsonDecode(response.body);

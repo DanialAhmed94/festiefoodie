@@ -5,18 +5,20 @@ import 'package:provider/provider.dart';
 import '../../../constants/appConstants.dart';
 import '../../../providers/menuProvider.dart';
 import '../../../utilities/reviewsScaffoldBackground.dart';
-import 'review.dart';
-import '../../../annim/transiton.dart';
 
-class StallMenu extends StatefulWidget {
+import '../../../annim/transiton.dart';
+import 'ratings.dart';
+
+class MenuByStall extends StatefulWidget {
   final String stallId;
-  const StallMenu({super.key, required this.stallId});
+
+  const MenuByStall({super.key, required this.stallId});
 
   @override
-  State<StallMenu> createState() => _StallMenuState();
+  State<MenuByStall> createState() => _StallMenuState();
 }
 
-class _StallMenuState extends State<StallMenu> {
+class _StallMenuState extends State<MenuByStall> {
   Future<void>? _menuFuture;
 
   Future<void> _fetchMenu() async {
@@ -116,7 +118,7 @@ class _StallMenuState extends State<StallMenu> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded( // ✅ Makes sure text doesn't overflow
+                      Expanded( // 👈 This fixes the text overflow
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -142,7 +144,7 @@ class _StallMenuState extends State<StallMenu> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8), // Optional spacing
+                      const SizedBox(width: 8), // optional spacing between text and button
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
@@ -157,7 +159,7 @@ class _StallMenuState extends State<StallMenu> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            FadePageRouteBuilder(widget: Review(menuId: menuItem.id.toString())),
+                            FadePageRouteBuilder(widget: Ratings(dishId: menuItem.id.toString())),
                           );
                         },
                         child: Row(

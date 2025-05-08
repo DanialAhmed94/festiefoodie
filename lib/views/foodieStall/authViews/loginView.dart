@@ -147,7 +147,10 @@ class _LoginViewState extends State<LoginView> {
                 // 3) Conditionally show CircularProgressIndicator or "Sign In"
                 child: Center(
                   child: _isLoading
-                      ? const CircularProgressIndicator()
+                      ? const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2.5,
+                  )
                       : const Text(
                     "Sign In",
                     style: TextStyle(
