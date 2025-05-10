@@ -80,7 +80,9 @@ class _RatingDetailState extends State<RatingDetail> {
                           child: imageUrl != null && imageUrl.isNotEmpty
                               ?
                           CachedNetworkImage(
-                          imageUrl: imageUrl,
+                            key: ValueKey(imageUrl), // <--- this ensures a unique widget instance
+
+                            imageUrl: imageUrl,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: 200,

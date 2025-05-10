@@ -12,6 +12,8 @@ import '../../models/allStallsCollectionModel.dart';
 import '../../providers/stallProvider.dart';
 import '../../utilities/scaffoldBackground.dart';
 import '../../utilities/sharedPrefs.dart';
+import '../feed/createPost.dart';
+import '../feed/socialpstview.dart';
 import 'addStallView/addStallView.dart';
 import 'addStallView/stallDetailView.dart';
 
@@ -91,7 +93,9 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
               ],
             ),
             const SizedBox(height: 15),
-            SvgPicture.asset(AppConstants.crapChat),
+            GestureDetector(
+                onTap: (){Navigator.push(context, FadePageRouteBuilder(widget: SocialMediaHomeView()));},
+                child: SvgPicture.asset(AppConstants.crapChat)),
             const SizedBox(height: 10),
             GestureDetector(
                 onTap: () => Navigator.push(

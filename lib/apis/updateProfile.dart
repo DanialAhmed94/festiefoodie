@@ -38,7 +38,13 @@ Future<void> updateUserProfile(
         .timeout(const Duration(seconds: 30));
 
     if (response.statusCode == 200) {
+
+
       final responseData = jsonDecode(response.body);
+
+      final userName = responseData['user']['name'];
+      await saveUserName(userName);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

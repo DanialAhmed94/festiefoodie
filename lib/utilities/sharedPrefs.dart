@@ -35,3 +35,8 @@ Future<bool?> getIsLogedIn() async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   return prefs.getBool('user_isLogedIn');
 }
+
+Future<void> saveTokenToPrefs(String? token) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setString('fcm_token', token ?? "");
+}

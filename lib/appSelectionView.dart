@@ -1,5 +1,6 @@
 import 'package:festiefoodie/utilities/scaffoldBackground.dart';
 import 'package:festiefoodie/utilities/sharedPrefs.dart';
+import 'package:festiefoodie/views/feed/socialpstview.dart';
 import 'package:festiefoodie/views/foodieStall/foofieStallHome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -27,7 +28,25 @@ class Appselectionview extends StatelessWidget {
           SizedBox(
             height: 10,
           ),
-          SvgPicture.asset(AppConstants.crapChat),
+          GestureDetector(
+              onTap: () async {
+                final isLoggedIn = await getIsLogedIn();
+
+                if (isLoggedIn == true) {
+                  // Navigate directly to stall home
+                  Navigator.push(
+                    context,
+                    FadePageRouteBuilder(widget: SocialMediaHomeView()),
+                  );
+                } else {
+                  // Navigate to login screen
+                  Navigator.push(
+                    context,
+                    FadePageRouteBuilder(widget: LoginView()),
+                  );
+                }
+              },
+              child: SvgPicture.asset(AppConstants.crapChat)),
           SizedBox(
             height: 10,
           ),
