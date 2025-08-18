@@ -6,6 +6,7 @@ import '../../../annim/transiton.dart';
 import '../../../apis/authentication/signup.dart';
 import '../../../utilities/authenticationBackground.dart';
 import 'loginView.dart';
+import 'otpVerification.dart';
 
 // 1) Add an _isLoading boolean
 class SignupView extends StatefulWidget {
@@ -34,13 +35,11 @@ class _SignupViewState extends State<SignupView> {
       FocusNode(); // Added confirm password focus
   final TextEditingController _confirmPasswordController =
       TextEditingController(); // Added confirm password controller
-  bool _isVerificationStep = false; // Verification state
   bool _obscurePassword = true; // Password visibility
   bool _obscureConfirmPassword = true; // Confirm password visibility
-  User? _firebaseUser; // Firebase user reference
 
-  // Add these methods for email verification
-  Future<void> _createFirebaseUserAndSendVerification() async {
+  // Add these methods for phone verification
+  Future<void> _proceedToOtpVerification() async {
     // First check form validation state
     if (!_formKey.currentState!.validate()) {
       // If invalid, manually trigger validation UI update
@@ -53,8 +52,9 @@ class _SignupViewState extends State<SignupView> {
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
     final phone = _phoneController.text.trim();
+    final username = _usernameController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || phone.isEmpty) {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || phone.isEmpty || username.isEmpty) {
       _showMessage('Please fill all required fields', isError: true);
       return;
     }
@@ -73,31 +73,20 @@ class _SignupViewState extends State<SignupView> {
     setState(() => _isLoading = true);
 
     try {
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      // Navigate to OTP verification screen
+      Navigator.push(
+        context,
+        FadePageRouteBuilder(
+          widget: PhoneOtpView(
+            email: email,
+            username: username,
+            phoneE164: phone,
+            password: password,
+          ),
+        ),
       );
-
-      _firebaseUser = userCredential.user;
-      await _firebaseUser!.sendEmailVerification();
-
-      setState(() => _isVerificationStep = true);
-      _showMessage('Verification email sent to $email');
-
-    } on FirebaseAuthException catch (e) {
-      String message = 'Registration failed';
-      if (e.code == 'weak-password') {
-        message = 'Password is too weak (min 6 characters)';
-      } else if (e.code == 'email-already-in-use') {
-        message = 'Account already exists for this email';
-      } else if (e.code == 'invalid-email') {
-        message = 'Invalid email format';
-      }
-      _showMessage(message, isError: true);
-
     } catch (e) {
       _showMessage('An unexpected error occurred', isError: true);
-
     } finally {
       setState(() => _isLoading = false);
     }
@@ -131,33 +120,6 @@ class _SignupViewState extends State<SignupView> {
         text: cleaned,
         selection: TextSelection.collapsed(offset: cleaned.length),
       );
-    }
-  }
-
-  Future<void> _checkEmailVerificationAndSignUp() async {
-    setState(() => _isLoading = true);
-    try {
-      await _firebaseUser!.reload();
-      _firebaseUser = _auth.currentUser;
-
-      if (_firebaseUser!.emailVerified) {
-        await signUp(
-          context,
-          _usernameController.text,
-          _emailController.text,
-          _phoneController.text.trim(),
-          Future.value([]),
-          '',
-          '',
-          _passwordController.text,
-        );
-      } else {
-        _showMessage('Email not verified yet', isError: true);
-      }
-    } catch (e) {
-      _showMessage('Verification check failed', isError: true);
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -417,81 +379,30 @@ class _SignupViewState extends State<SignupView> {
             const SizedBox(height: 30),
 
             // SignUp Button
-            // Updated signup button logic
-            if (!_isVerificationStep) ...[
-              GestureDetector(
-                onTap: _createFirebaseUserAndSendVerification,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6900),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2.5,
-                          )
-                        : const Text("SignUp",style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),),
-                  ),
+            GestureDetector(
+              onTap: _proceedToOtpVerification,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6900),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: _isLoading
+                      ? const CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2.5,
+                        )
+                      : const Text("Continue",style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),),
                 ),
               ),
-            ],
-
-            if (_isVerificationStep) ...[
-              // Add verification UI elements
-              GestureDetector(
-                onTap: _checkEmailVerificationAndSignUp,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.orange),
-                          )
-                        : Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF6900),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: const Text(
-                                "I've verified my email",
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 16),
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-              TextButton(
-                onPressed: () {
-                  _firebaseUser?.sendEmailVerification();
-                  _showMessage("Verification email sent",isError: false);
-                },
-                child: const Text(
-                  "Resend verification email",
-                  style: TextStyle(color: Color(0xFFFF6900)),
-                ),
-              ),
-            ],
+            ),
             const SizedBox(height: 10),
 
             // Already have an account? Sign In
