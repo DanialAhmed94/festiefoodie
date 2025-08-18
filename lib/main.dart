@@ -12,77 +12,111 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'firebase_options.dart';
 import 'splashView.dart';
+import 'views/foodieStall/foofieStallHome.dart';
+import 'views/foodieStall/authViews/loginView.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print("Handling a background message: ${message.messageId}");
-
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('Handling background message: ${message.messageId}');
   if (message.notification != null) {
-    // The system will handle displaying the notification.
-    // No need to manually display it.
-    print('Message contains a notification payload. System will display it.');
-  } else {
-    // If it's a data-only message, you can display a notification manually.
-
+    _showNotification(
+      message.notification?.title ?? '',
+      message.notification?.body ?? '',
+    );
   }
 }
 
-
 Future<void> _showNotification(String title, String body) async {
   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'high_importance_channel',
-      'High Importance Notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher', // <- small icon
-      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'), // Custom large icon
-      styleInformation: BigPictureStyleInformation(
-        DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),)
+    'festiefoodie_high_importance_channel',
+    'High Importance Notifications',
+    channelDescription: 'Used for important FestieFoodie notifications',
+    importance: Importance.max,
+    priority: Priority.high,
+    icon: '@mipmap/ic_launcher',
+    largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
   );
 
-  const NotificationDetails notificationDetails = NotificationDetails(
+  const DarwinNotificationDetails iOSDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+
+  const NotificationDetails platformDetails = NotificationDetails(
     android: androidDetails,
+    iOS: iOSDetails,
   );
 
-  await flutterLocalNotificationsPlugin.show(0, title, body, notificationDetails);
+  await flutterLocalNotificationsPlugin.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    title,
+    body,
+    platformDetails,
+  );
 }
-void main() async{
 
+Future<void> _navigateToAppropriateScreen() async {
+  bool isLoggedIn = (await getIsLogedIn()) ?? false;
+
+  if (isLoggedIn) {
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => FoodieStallHome()),
+      (_) => false,
+    );
+  } else {
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginView()),
+      (_) => false,
+    );
+  }
+}
+
+Future<String?> getCurrentUserId() async {
+  final userId = await getUserId();
+  return userId?.toString(); // returns null if no one is logged in
+}
+
+
+
+void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Must be before runApp
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
   await initializeLocalNotifications();
 
   final FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-  // Request permissions for iOS
-  await messaging.requestPermission(
-    alert: true,
-    announcement: false,
-    badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
-    sound: true,
-  );
+  // iOS permission
+  await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-  // Enable auto-initialization on Android
+  // Android 13+ auto-init
   if (Platform.isAndroid) {
     await messaging.setAutoInitEnabled(true);
   }
 
-  // Retrieve and save the FCM token
+  // Retrieve and save token
   String? token = await messaging.getToken();
-  print('FCM Registration Token ***********************: $token');
-  await saveTokenToPrefs(token);
+  print('FCM Token: $token');
+
+
+
+
+  // Set the preferred orientations to portrait only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,   // Portrait mode (upright)
+    DeviceOrientation.portraitDown, // Portrait mode (upside-down)
+  ]);
 
   // Set up system UI overlay styles
   SystemChrome.setSystemUIOverlayStyle(
@@ -92,13 +126,6 @@ void main() async{
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-// Set the preferred orientations to portrait only
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,   // Portrait mode (upright)
-    DeviceOrientation.portraitDown, // Portrait mode (upside-down)
-  ]);
-
-
 
   runApp((MultiProvider(providers: [
       ChangeNotifierProvider(create: (_) => FestivalProvider()),
@@ -106,29 +133,36 @@ void main() async{
       ChangeNotifierProvider(create: (_) => EventProvider()),
       ChangeNotifierProvider(create: (_) => StallProvider()),
       ChangeNotifierProvider(create: (_) => MenuProvider()),
-
   ],
      child: const MyApp())));
 }
-Future<void> initializeLocalNotifications() async {
-  const AndroidInitializationSettings androidInitializationSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: androidInitializationSettings,
+Future<void> initializeLocalNotifications() async {
+  const AndroidInitializationSettings initAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const DarwinInitializationSettings initIOS = DarwinInitializationSettings(
+    requestSoundPermission: true,
+    requestBadgePermission: true,
+    requestAlertPermission: true,
+  );
+
+  const InitializationSettings initSettings = InitializationSettings(
+    android: initAndroid,
+    iOS: initIOS,
   );
 
   await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) async{
-      print("Notification clicked with payload: ${response.payload}");
-// Handle navigation when notification is tapped
-     // await _navigateToAppropriateScreen();
+    initSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) async {
+      print("Notification tapped: ${response.payload}");
+      await _navigateToAppropriateScreen();
     },
   );
 
   // Create notification channel for Android 8.0+
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'high_importance_channel', // Channel ID
+    'festiefoodie_high_importance_channel', // Channel ID
     'High Importance Notifications', // Channel name
     description: 'This channel is used for important notifications.',
     importance: Importance.high,
@@ -147,48 +181,44 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // This widget is the root of your application.
-  @override
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     setupFCM();
-
   }
-  Future<void> setupFCM() async {
-    final FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    // Listen for foreground messages
+  Future<void> setupFCM() async {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Received a foreground message: ${message.messageId}');
-      RemoteNotification? notification = message.notification;
-      if (notification != null) {
+      print('Foreground message: ${message.messageId}');
+      if (message.notification != null) {
         _showNotification(
-          notification.title ?? 'No Title',
-          notification.body ?? 'No Body',
+          message.notification!.title ?? '',
+          message.notification!.body ?? '',
         );
       }
     });
 
-    // Handle notification tap when the app is in background or terminated
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Notification opened app from background or terminated state: ${message.messageId}');
-      //_handleNotificationClick(message);
+      print('Notification opened app: ${message.messageId}');
+      _handleNotificationClick(message);
     });
 
-    // Handle app launch from a terminated state with a notification
-    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null) {
-        print('App opened from terminated state with notification: ${message.messageId}');
-        //_handleNotificationClick(message);
+        print('App opened from terminated with message: ${message.messageId}');
+        _handleNotificationClick(message);
       }
     });
   }
+
+  Future<void> _handleNotificationClick(RemoteMessage message) async {
+    await _navigateToAppropriateScreen();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'FestieFoodie',
       theme: ThemeData(

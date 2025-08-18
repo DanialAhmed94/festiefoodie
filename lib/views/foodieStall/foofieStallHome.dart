@@ -12,6 +12,8 @@ import '../../models/allStallsCollectionModel.dart';
 import '../../providers/stallProvider.dart';
 import '../../utilities/scaffoldBackground.dart';
 import '../../utilities/sharedPrefs.dart';
+import '../../apis/deleteAccount_api.dart';
+import '../../services/firestore_user_service.dart';
 import '../feed/createPost.dart';
 import '../feed/socialpstview.dart';
 import 'addStallView/addStallView.dart';
@@ -71,7 +73,9 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, color: Colors.white),
                   onSelected: (value) async {
+                    print('🔍 Debug: Popup menu item selected: $value');
                     if (value == 'logout') {
+                      print('🔍 Debug: Logout option selected');
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.clear(); // Clear all saved login/user data
 
@@ -81,12 +85,99 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                         FadePageRouteBuilder( widget: LoginView()),
                             (route) => false,
                       );
+                    } else if (value == 'delete_account') {
+                      print('🔍 Debug: Delete account option selected');
+                      print('🔍 Debug: About to show confirmation dialog...');
+                      print('🔍 Debug: Context mounted: ${context.mounted}');
+                      
+
+                      
+                      // Show confirmation dialog
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        barrierDismissible: false, // Prevent dismissing by tapping outside
+                        builder: (context) {
+                          print('🔍 Debug: Building confirmation dialog...');
+                          return AlertDialog(
+                            title: const Text('Delete Account'),
+                            content: const Text(
+                              'Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  print('🔍 Debug: User clicked Cancel');
+                                  Navigator.pop(context, false);
+                                },
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  print('🔍 Debug: User clicked Delete');
+                                  Navigator.pop(context, true);
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      print('🔍 Debug: Confirmation dialog result: $confirmed');
+
+                      if (confirmed == true) {
+                        print('🔍 Debug: User confirmed deletion, getting user ID...');
+                        // Get user ID and delete account
+                        // final userId = await FirestoreUserService.getUserId();
+                        // print('🔍 Debug: Retrieved user ID: $userId');
+                        
+
+                          print('🔍 Debug: Calling deleteAccount API with userId');
+                          final success = await deleteAccount(context);
+                          print('🔍 Debug: deleteAccount API returned: $success');
+                          
+                          if (success) {
+                            print('🔍 Debug: Account deletion successful, navigating to login...');
+                            // Navigate to login screen after successful deletion
+                            Navigator.of(context).pushAndRemoveUntil(
+                              FadePageRouteBuilder(widget: LoginView()),
+                              (route) => false,
+                            );
+                          } else {
+                            print('🔍 Debug: Account deletion failed');
+                          }
+
+                      } else {
+                        print('🔍 Debug: User cancelled deletion');
+                      }
                     }
                   },
                   itemBuilder: (BuildContext context) => [
                     const PopupMenuItem<String>(
                       value: 'logout',
-                      child: Text('Logout'),
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.grey),
+                          SizedBox(width: 8),
+                          Text('Logout'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'delete_account',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_forever, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text(
+                            'Delete Account',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

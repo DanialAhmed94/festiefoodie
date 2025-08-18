@@ -4,6 +4,7 @@ import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../annim/transiton.dart';
 import '../../constants/appConstants.dart';
@@ -21,10 +22,8 @@ Future<void> LogInApi(
   final Map<String, dynamic> logInData = {
     'email': email,
     'password': password,
-   // 'device_token': deviceId,
-    'device_token': "testing",
+    'device_token': deviceId,
     'app_type':"festiefoodie",
-
   };
   try {
     final response = await http
@@ -46,16 +45,27 @@ Future<void> LogInApi(
 
         final userName = responseData['data']['user']['name'];
         final userEmail = responseData['data']['user']['email'];
-              print("token $token");
+        final userId = responseData['data']['user']['id'];
+        print("token $token");
         await saveToken(token);
         await saveUserName(userName);
         await saveUserEmail(userEmail);
+        await saveUserId(userId);
 
         await setIsLogedIn(true);
 
+        // Save FCM token in Firestore
+
+        if (userId != null && (deviceId?.isNotEmpty ?? false)) {
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(userId.toString())
+              .set({"fcmToken": deviceId}, SetOptions(merge: true));
+          print("✅ FCM token updated for user: $userId");
+        }
+
         print("api hit ${token}");
         Navigator.pushReplacement(
-
             context, FadePageRouteBuilder(widget:  FoodieStallHome(),));
         // context, FadePageRouteBuilder(widget: PremiumView()));
       } else {

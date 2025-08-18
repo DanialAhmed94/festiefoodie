@@ -14,7 +14,10 @@ import 'package:video_player/video_player.dart';
 import '../../annim/transiton.dart';
 import '../../constants/appConstants.dart';
 import '../../utilities/sharedPrefs.dart';
+import '../../services/firestore_chat_service.dart';
+import '../../services/firestore_user_service.dart';
 import 'createPost.dart';
+import 'inbox_view.dart';
 
 
 class SocialMediaHomeView extends StatefulWidget {
@@ -239,6 +242,22 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                       ),
                     ],
                   ),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.message,
+                        color: Colors.blue,
+                        size: 24,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          FadePageRouteBuilder(
+                            widget: InboxView(),
+                          ),
+                        );                      },
+                    ),
+                  ],
 
                 ),
               ),
@@ -636,6 +655,8 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
+
+
 }
 
 // -------------------------------------------------------------------

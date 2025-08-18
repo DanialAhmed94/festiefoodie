@@ -27,6 +27,17 @@ Future<String?> getUserEmail() async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   return prefs.getString('user_email');
 }
+
+Future<void> saveUserId(int userId) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setInt('user_id', userId);
+}
+
+Future<int?> getUserId() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getInt('user_id');
+}
+
 Future<void> setIsLogedIn(bool isLogedIn) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   await prefs.setBool('user_isLogedIn', isLogedIn);
@@ -39,4 +50,9 @@ Future<bool?> getIsLogedIn() async {
 Future<void> saveTokenToPrefs(String? token) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   await prefs.setString('fcm_token', token ?? "");
+}
+
+Future<String?> getFcmToken() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('fcm_token');
 }

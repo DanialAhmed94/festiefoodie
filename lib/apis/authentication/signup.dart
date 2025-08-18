@@ -4,11 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../constants/appConstants.dart';
+import '../../services/firestore_user_service.dart';
 import '../../utilities/dilalogBoxes.dart';
 import '../../views/foodieStall/authViews/loginView.dart';
-
 
 Future<void> signUp(
     BuildContext context,
@@ -37,7 +38,6 @@ Future<void> signUp(
     'image3': uploadedImages.length > 2 ? uploadedImages[2] : null,
     'app_type':"festiefoodie",
     'device_token': deviceId,
-
   };
 
   try {
@@ -61,8 +61,28 @@ Future<void> signUp(
         print('Signup successful: ${responseData['message']}');
         print('Token: ${responseData['data']['response']['token']}');
         print('User: ${responseData['data']['user']}');
-        showSuccessDialog(context,"Your account has been created successfully!",null,LoginView());
 
+        // Create user in Firestore for chat functionality
+        try {
+          final userData = responseData['data']['user'];
+          final userId = userData['id'].toString();
+          final userName = userData['name'];
+          final phoneNumber = userData['phone'];
+
+          await FirestoreUserService.createOrUpdateUser(
+            userId: userId,
+            phoneNumber: phoneNumber,
+            userName: userName,
+          );
+
+          print('✅ User created in Firestore for chat functionality');
+        } catch (e) {
+          print('⚠️ Warning: Failed to create user in Firestore: $e');
+          // Don't block signup if Firestore fails
+        }
+
+
+        showSuccessDialog(context,"Your account has been created successfully!",null,LoginView());
       } else {
         // Server-side validation or other errors
         showErrorDialog(
