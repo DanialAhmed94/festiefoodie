@@ -8,6 +8,7 @@ class AppConstants{
   static String reviewScaffoldBackground = "assets/svgs/reviewsScaffoldBackground.svg";
   static String crapChat = "assets/svgs/crapChat.svg";
   static String drawerIcon = "assets/svgs/drawersvg1.svg";
+  //static String favFod = "assets/images/favouritefood.png";
   static String favFod = "assets/images/favouritefood.png";
   static String app1Card = "assets/images/app1Card.png";
   static String app2Card = "assets/images/app2card.png";

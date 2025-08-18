@@ -32,6 +32,14 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
 
   BitmapDescriptor? _customMarkerIcon; // Variable to store custom marker icon
   LatLng? userLocation;
+  bool _showLoadingOverlay = true;
+  
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _isSearching = false;
+  List<FestivalResource> _filteredFestivals = [];
+  OverlayEntry? _searchOverlay;
 
   @override
   void initState() {
@@ -39,7 +47,25 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     _setupMap();
     _fetchCustomMarker();
 
-    // Fetch custom marker icon
+    // Show loading overlay for exactly 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showLoadingOverlay = false;
+        });
+      }
+    });
+    
+    // Listen to search controller changes
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _searchOverlay?.remove();
+    super.dispose();
   }
   Future<void> _setupMap() async {
     try {
@@ -82,6 +108,193 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     return Geolocator.distanceBetween(
         start.latitude, start.longitude, end.latitude, end.longitude);
   }
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      _isSearching = query.isNotEmpty;
+    });
+    
+    if (query.isEmpty) {
+      setState(() {
+        _filteredFestivals = [];
+      });
+      _hideSearchOverlay();
+      return;
+    }
+
+    // Get the current festival provider
+    final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
+    
+    // Filter festivals based on search query
+    final filtered = festivalProvider.festivals.where((festival) {
+      final nameOrganizer = (festival.nameOrganizer ?? '').toLowerCase();
+      final description = (festival.description ?? '').toLowerCase();
+      final descriptionOrganizer = (festival.descriptionOrganizer ?? '').toLowerCase();
+      
+      return nameOrganizer.contains(query) || 
+             description.contains(query) || 
+             descriptionOrganizer.contains(query);
+    }).toList();
+
+    setState(() {
+      _filteredFestivals = filtered;
+    });
+    
+    _showSearchOverlay();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _isSearching = false;
+      _filteredFestivals = [];
+    });
+    _hideSearchOverlay();
+  }
+
+  void _showSearchOverlay() {
+    _hideSearchOverlay(); // Remove existing overlay first
+    
+    if (_filteredFestivals.isEmpty) return;
+    
+    _searchOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 140, // Below search bar
+        left: 16,
+        right: 16,
+        child: Material(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.4,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: _filteredFestivals.length,
+              itemBuilder: (context, index) {
+                final festival = _filteredFestivals[index];
+                final title = festival.nameOrganizer ?? festival.description;
+                
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF96222).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.festival,
+                      color: const Color(0xFFF96222),
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    festival.descriptionOrganizer ?? '',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () => _navigateToFestival(festival),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    Overlay.of(context).insert(_searchOverlay!);
+  }
+
+  void _hideSearchOverlay() {
+    _searchOverlay?.remove();
+    _searchOverlay = null;
+  }
+
+  void _navigateToFestival(FestivalResource festival) {
+    try {
+      final latitude = double.parse(festival.latitude);
+      final longitude = double.parse(festival.longitude);
+      final festivalLatLng = LatLng(latitude, longitude);
+      
+      // Navigate to festival with same zoom level as nearest festival (13)
+      _controller.animateCamera(
+        CameraUpdate.newLatLngZoom(festivalLatLng, 13),
+      );
+      
+      // Clear search
+      _clearSearch();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Navigated to ${festival.nameOrganizer ?? festival.description}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFF96222), // Brand orange color
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error navigating to festival: $e');
+    }
+  }
+
   FestivalResource? _findNearestFestival() {
     final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
 
@@ -137,8 +350,129 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
           zoomControlsEnabled: false,
           myLocationButtonEnabled: false,
         ),
+        // Loading overlay to prevent blue screen flash
+        if (_showLoadingOverlay)
+          Positioned.fill(
+            child: Container(
+              color: Colors.white,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF96222).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.map,
+                        size: 60,
+                        color: const Color(0xFFF96222),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "FestieFoodie is global, hold tight while we load the map.",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // Search Bar
         Positioned(
           top: MediaQuery.of(context).size.height * 0.11,
+          left: 16,
+          right: 16,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+              decoration: InputDecoration(
+                hintText: "Search festivals...",
+                hintStyle: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: Container(
+                  margin: const EdgeInsets.all(12),
+                  child: Icon(
+                    Icons.search,
+                    color: const Color(0xFFF96222),
+                    size: 24,
+                  ),
+                ),
+                suffixIcon: _isSearching
+                    ? Container(
+                        margin: const EdgeInsets.all(12),
+                        child: GestureDetector(
+                          onTap: _clearSearch,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.grey[600],
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFF96222),
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: MediaQuery.of(context).size.height * 0.18,
           right: 0,
           left: 0,
           child: Row(

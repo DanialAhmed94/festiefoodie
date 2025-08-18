@@ -58,6 +58,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
   bool _mapLoaded = false;
   bool _isFetchingAddress = false;
   bool _isInitialLoad = true;
+  bool _showLoadingOverlay = true;
 
   @override
   void initState() {
@@ -65,6 +66,16 @@ class _GoogleMapViewState extends State<GoogleMapView>
     WidgetsBinding.instance.addObserver(this);
     _checkAndRequestLocationPermission();
     _fetchCustomMarker();_loadCustomMarkerIcon();
+    
+    // Show loading overlay for exactly 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showLoadingOverlay = false;
+        });
+      }
+    });
+    
     super.initState();
   }
 
@@ -343,7 +354,41 @@ class _GoogleMapViewState extends State<GoogleMapView>
                 if (!_mapLoaded) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text('Map is still loading, please wait.')),
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'FestieFoodie is global, hold tight while we load the map.',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.blue.shade600, // Info color
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      margin: const EdgeInsets.all(16),
+                      duration: const Duration(seconds: 3),
+                      action: SnackBarAction(
+                        label: 'OK',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        },
+                      ),
+                    ),
                   );
                   return;
                 }
@@ -374,6 +419,46 @@ class _GoogleMapViewState extends State<GoogleMapView>
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
               compassEnabled: false,
+            ),
+          ),
+          // Loading overlay to prevent blue screen flash
+          if (_showLoadingOverlay)
+            Positioned.fill(
+              child: Container(
+                color: Colors.white,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF96222).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.map,
+                          size: 60,
+                          color: const Color(0xFFF96222),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        "FestieFoodie is global, hold tight while we load the map.",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
+                      ),
+                    ],
+                  ),
+                ),
             ),
           ),
           Positioned(

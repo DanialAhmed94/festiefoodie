@@ -134,7 +134,7 @@ class _StallMenuState extends State<MenuByStall> {
                             ),
                             SizedBox(height: screenHeight * 0.005),
                             Text(
-                              "Price : ${menuItem.dishPrice} (£)",
+                              "Price : ${menuItem.dishPrice} ",
                               style: TextStyle(
                                 fontFamily: "inter-regular",
                                 fontSize: screenWidth * 0.04,

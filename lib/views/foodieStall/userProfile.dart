@@ -259,15 +259,36 @@ class _UserProfileState extends State<UserProfile> {
                           _confirmPasswordController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              'Please fill in all fields',
-                              style: TextStyle(color: Colors.white),
+                            content: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Please fill in all fields',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            backgroundColor: Colors.red.shade600, // Error color
                             behavior: SnackBarBehavior.floating,
-                            backgroundColor: Colors.black87,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            margin: const EdgeInsets.all(16),
+                            duration: const Duration(seconds: 3),
                             action: SnackBarAction(
                               label: 'OK',
-                              textColor: Colors.orange,
+                              textColor: Colors.white,
                               onPressed: () {
                                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                               },
@@ -279,9 +300,33 @@ class _UserProfileState extends State<UserProfile> {
                       if (_confirmPasswordController.text.trim().length < 8) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('New password must be at least 8 characters long', style: TextStyle(color: Colors.white)),
-                            backgroundColor: Colors.redAccent,
+                            content: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'New password must be at least 8 characters long',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.red.shade600, // Error color
                             behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            margin: const EdgeInsets.all(16),
+                            duration: const Duration(seconds: 3),
                             action: SnackBarAction(
                               label: 'OK',
                               textColor: Colors.white,

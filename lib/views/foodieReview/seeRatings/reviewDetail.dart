@@ -172,7 +172,7 @@ class _RatingDetailState extends State<RatingDetail> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              "Score: ${widget.score}/100",
+                              "Score: ${widget.score}/120",
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),

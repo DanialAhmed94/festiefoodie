@@ -125,16 +125,36 @@ class _StallDetailViewState extends State<StallDetailView> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(
-                                  'Google Maps not installed. Please install Google Maps to use navigation',
-
-                                  style: TextStyle(color: Colors.white),
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Google Maps not installed. Please install Google Maps to use navigation',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                backgroundColor: Colors.red.shade600, // Error color
                                 behavior: SnackBarBehavior.floating,
-                                backgroundColor: Colors.black87, // Light black
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                margin: const EdgeInsets.all(16),
+                                duration: const Duration(seconds: 3),
                                 action: SnackBarAction(
                                   label: 'OK',
-                                  textColor: Colors.orange,
+                                  textColor: Colors.white,
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                   },
@@ -146,25 +166,43 @@ class _StallDetailViewState extends State<StallDetailView> {
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Error opening navigation: ${e.toString()}', style: TextStyle(color: Colors.white),),
-
+                              content: Row(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Error opening navigation: ${e.toString()}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: Colors.red.shade600, // Error color
                               behavior: SnackBarBehavior.floating,
-                              backgroundColor: Colors.black87, // Light black
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              margin: const EdgeInsets.all(16),
+                              duration: const Duration(seconds: 3),
                               action: SnackBarAction(
                                 label: 'OK',
-                                textColor: Colors.orange,
+                                textColor: Colors.white,
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                 },
                               ),
                             ),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error opening navigation: ${e.toString()}'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+
                         }
                       },
                       child: Row(

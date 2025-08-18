@@ -15,6 +15,8 @@ import '../../../providers/festivalProvider.dart';
 import '../../../utilities/scaffoldBackground.dart';
 import '../mapViews/LocationMap.dart';
 import '../../../utilities/dilalogBoxes.dart'; // Contains showErrorDialog()
+import '../../../utilities/imagePickerUtility.dart';
+import '../../../utilities/currencyUtility.dart';
 
 class AddStallView extends StatefulWidget {
   const AddStallView({super.key});
@@ -29,6 +31,7 @@ class _AddStallViewState extends State<AddStallView> {
 
   XFile? _selectedImage;
   bool _isImageSelected = true;
+  bool _isCompressingStallImage = false;
   TextEditingController _stallNameController = TextEditingController();
   TextEditingController _latitudeController = TextEditingController();
   TextEditingController _longitudeController = TextEditingController();
@@ -70,6 +73,11 @@ class _AddStallViewState extends State<AddStallView> {
       menuItems.add(MenuItem(
         dishNameController: TextEditingController(),
         priceController: TextEditingController(),
+        selectedImage: null,
+        isImageSelected: false,
+        isCompressing: false,
+        selectedCurrency: 'GBP',
+        currencySymbol: '£',
       ));
     });
   }
@@ -84,13 +92,45 @@ class _AddStallViewState extends State<AddStallView> {
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker _picker = ImagePicker();
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await ImagePickerUtility.showImageSourceModal(
+      context,
+      title: "Select Stall Image",
+    );
 
     if (image != null) {
       setState(() {
+        _isCompressingStallImage = true;
+      });
+      
+      // Simulate compression time for better UX
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      setState(() {
         _selectedImage = image;
         _isImageSelected = true;
+        _isCompressingStallImage = false;
+      });
+    }
+  }
+
+  Future<void> _pickMenuItemImage(int index) async {
+    final XFile? image = await ImagePickerUtility.showImageSourceModal(
+      context,
+      title: "Select Dish Image",
+    );
+
+    if (image != null) {
+      setState(() {
+        menuItems[index].isCompressing = true;
+      });
+      
+      // Simulate compression time for better UX
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      setState(() {
+        menuItems[index].selectedImage = image;
+        menuItems[index].isImageSelected = true;
+        menuItems[index].isCompressing = false;
       });
     }
   }
@@ -134,13 +174,14 @@ class _AddStallViewState extends State<AddStallView> {
     bool hasValidMenuItem = false;
     for (var item in menuItems) {
       if (item.dishNameController.text.trim().isNotEmpty &&
-          item.priceController.text.trim().isNotEmpty) {
+           item.priceController.text.trim().isNotEmpty &&
+           item.isImageSelected) {
         hasValidMenuItem = true;
         break;
       }
     }
     if (!hasValidMenuItem) {
-      showErrorDialog(context, "Please add at least one menu item", []);
+       showErrorDialog(context, "Please add at least one complete menu item with dish name, price, and image", []);
       return;
     }
     if (_selectedImage == null) {
@@ -236,7 +277,16 @@ class _AddStallViewState extends State<AddStallView> {
                                 await festivalProvider.fetchFestivals(context);
                               }
                             },
-                            hint: const Text("Choose a festival"),
+                            hint: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.6,
+                              ),
+                              child: const Text(
+                                "Choose a festival",
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                             decoration: InputDecoration(
                               prefixIcon: SvgPicture.asset(
                                 AppConstants.festivalPrefix,
@@ -247,7 +297,14 @@ class _AddStallViewState extends State<AddStallView> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
+                              contentPadding: const EdgeInsets.only(
+                                left: 12,
+                                right: 40, // Extra space for dropdown arrow
+                                top: 16,
+                                bottom: 16,
                             ),
+                            ),
+                            isExpanded: true,
                             items: festivalProvider.isFetching
                                 ? [
                               DropdownMenuItem<String>(
@@ -271,9 +328,18 @@ class _AddStallViewState extends State<AddStallView> {
                                 ? festivalProvider.festivals.map((festival) {
                               return DropdownMenuItem<String>(
                                 value: festival.id.toString(),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                    MediaQuery.of(context).size.width * 0.6,
+                                  ),
                                 child: Text(
                                   festival.nameOrganizer ??
-                                      festival.description,),
+                                        festival.description,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
                               );
                             }).toList()
                                 : [
@@ -325,7 +391,16 @@ class _AddStallViewState extends State<AddStallView> {
                           // Otherwise, show the real dropdown
                           return DropdownButtonFormField<String>(
                             value: _selectedEventId,
-                            hint: const Text("Choose an event"),
+                            hint: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.6,
+                              ),
+                              child: const Text(
+                                "Choose an event",
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                             decoration: InputDecoration(
                               prefixIcon: SvgPicture.asset(
                                 AppConstants.festivalPrefix,
@@ -336,7 +411,14 @@ class _AddStallViewState extends State<AddStallView> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
+                              contentPadding: const EdgeInsets.only(
+                                left: 12,
+                                right: 40, // Extra space for dropdown arrow
+                                top: 16,
+                                bottom: 16,
                             ),
+                            ),
+                            isExpanded: true,
                             items: eventProvider.events.map((event) {
                               return DropdownMenuItem<String>(
                                 value: event.id.toString(),
@@ -413,7 +495,26 @@ class _AddStallViewState extends State<AddStallView> {
                             ],
                           ),
                           child: Center(
-                            child: _selectedImage == null
+                             child: _isCompressingStallImage
+                                 ? Column(
+                                     mainAxisAlignment: MainAxisAlignment.center,
+                                     children: [
+                                       const CircularProgressIndicator(
+                                         color: Color(0xFFF96222),
+                                         strokeWidth: 3,
+                                       ),
+                                       const SizedBox(height: 12),
+                                       Text(
+                                         "Compressing image...",
+                                         style: TextStyle(
+                                           color: const Color(0xFFF96222),
+                                           fontSize: 14,
+                                           fontWeight: FontWeight.w500,
+                                         ),
+                                       ),
+                                     ],
+                                   )
+                                 : _selectedImage == null
                                 ? SvgPicture.asset(AppConstants.addImageIcon,
                                 color: const Color(0xFFF96222))
                                 : ClipRRect(
@@ -533,44 +634,375 @@ class _AddStallViewState extends State<AddStallView> {
                           ...menuItems.asMap().entries.map((entry) {
                             int index = entry.key;
                             MenuItem item = entry.value;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: Row(
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: TextFormField(
+                                    // Header with item number and remove button
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF96222).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            "Item ${index + 1}",
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFFF96222),
+                                            ),
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        IconButton(
+                                          icon: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          onPressed: () => removeMenuItem(index),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    
+                                    // Dish Name Field
+                                    const Text(
+                                      "Dish Name",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
                                       controller: item.dishNameController,
                                       decoration: InputDecoration(
-                                        hintText: "Dish Name",
+                                        hintText: "Enter dish name",
                                         filled: true,
-                                        fillColor: Colors.white,
+                                        fillColor: Colors.grey.shade50,
                                         border: OutlineInputBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide.none,
                                         ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
+                                    const SizedBox(height: 16),
+                                    
+                                    // Price and Currency Row
+                                    Row(
+                                      children: [
                                   Expanded(
-                                    child: TextFormField(
+                                          flex: 2,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                "Price",
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              TextFormField(
                                       controller: item.priceController,
+                                                keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
-                                        hintText: "Price",
+                                                  hintText: "0.00",
                                         filled: true,
-                                        fillColor: Colors.white,
+                                                  fillColor: Colors.grey.shade50,
                                         border: OutlineInputBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(8),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    borderSide: BorderSide.none,
+                                                  ),
+                                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      keyboardType: TextInputType.number,
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          flex: 1,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                "Currency",
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey.shade50,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: DropdownButtonHideUnderline(
+                                                  child: DropdownButton<String>(
+                                                    value: item.selectedCurrency,
+                                                    isExpanded: true,
+                                                    icon: Container(
+                                                      padding: const EdgeInsets.all(4),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFF96222).withOpacity(0.1),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.keyboard_arrow_down,
+                                                        color: Color(0xFFF96222),
+                                                        size: 18,
+                                                      ),
+                                                    ),
+                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                    selectedItemBuilder: (BuildContext context) {
+                                                      return CurrencyUtility.currencies.map((currency) {
+                                                        return Container(
+                                                          alignment: Alignment.centerLeft,
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Container(
+                                                                padding: const EdgeInsets.all(4),
+                                                                decoration: BoxDecoration(
+                                                                  color: const Color(0xFFF96222).withOpacity(0.15),
+                                                                  borderRadius: BorderRadius.circular(4),
+                                                                ),
+                                                                child: Text(
+                                                                  currency.symbol,
+                                                                  style: const TextStyle(
+                                                                    fontSize: 12,
+                                                                    fontWeight: FontWeight.w600,
+                                                                    color: Color(0xFFF96222),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(width: 4),
+                                                              Text(
+                                                                currency.code,
+                                                                style: const TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: Colors.grey,
+                                                                  fontWeight: FontWeight.w500,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                      }).toList();
+                                                    },
+                                                    items: CurrencyUtility.currencies.map((currency) {
+                                                      return DropdownMenuItem<String>(
+                                                        value: currency.code,
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Container(
+                                                              padding: const EdgeInsets.all(6),
+                                                              decoration: BoxDecoration(
+                                                                color: const Color(0xFFF96222).withOpacity(0.1),
+                                                                borderRadius: BorderRadius.circular(6),
+                                                              ),
+                                                              child: Text(
+                                                                currency.symbol,
+                                                                style: const TextStyle(
+                                                                  fontSize: 14,
+                                                                  fontWeight: FontWeight.w600,
+                                                                  color: Color(0xFFF96222),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Expanded(
+                                                              child: Text(
+                                                                currency.code,
+                                                                style: const TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors.grey,
+                                                                  fontWeight: FontWeight.w500,
+                                                                ),
+                                                                overflow: TextOverflow.ellipsis,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                    onChanged: (newValue) {
+                                                      if (newValue != null) {
+                                                        setState(() {
+                                                          item.selectedCurrency = newValue;
+                                                          item.currencySymbol = CurrencyUtility.getSymbolByCode(newValue);
+                                                        });
+                                                      }
+                                                    },
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_circle,
-                                        color: Colors.red),
-                                    onPressed: () => removeMenuItem(index),
+                                    const SizedBox(height: 16),
+                                    
+                                    // Image Selection
+                                    const Text(
+                                      "Dish Image",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => _pickMenuItemImage(index),
+                                            child: Container(
+                                              height: 120,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade50,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: item.isImageSelected 
+                                                    ? Colors.green.shade300 
+                                                    : Colors.grey.shade300,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                                                                             child: Center(
+                                                 child: item.isCompressing
+                                                     ? Column(
+                                                         mainAxisAlignment: MainAxisAlignment.center,
+                                                         children: [
+                                                           const CircularProgressIndicator(
+                                                             color: Color(0xFFF96222),
+                                                             strokeWidth: 2,
+                                                           ),
+                                                           const SizedBox(height: 8),
+                                                           Text(
+                                                             "Compressing...",
+                                                             style: TextStyle(
+                                                               color: const Color(0xFFF96222),
+                                                               fontSize: 12,
+                                                               fontWeight: FontWeight.w500,
+                                                             ),
+                                                           ),
+                                                         ],
+                                                       )
+                                                     : item.isImageSelected
+                                                         ? ClipRRect(
+                                                             borderRadius: BorderRadius.circular(6),
+                                                             child: Image.file(
+                                                               File(item.selectedImage!.path),
+                                                               fit: BoxFit.cover,
+                                                               width: double.infinity,
+                                                               height: double.infinity,
+                                                             ),
+                                                           )
+                                                         : Column(
+                                                             mainAxisAlignment: MainAxisAlignment.center,
+                                                             children: [
+                                                               Container(
+                                                                 padding: const EdgeInsets.all(12),
+                                                                 decoration: BoxDecoration(
+                                                                   color: const Color(0xFFF96222).withOpacity(0.1),
+                                                                   borderRadius: BorderRadius.circular(8),
+                                                                 ),
+                                                                 child: SvgPicture.asset(
+                                                                   AppConstants.addImageIcon,
+                                                                   color: const Color(0xFFF96222),
+                                                                   height: 24,
+                                                                 ),
+                                                               ),
+                                                               const SizedBox(height: 8),
+                                                               const Text(
+                                                                 "Add Image",
+                                                                 style: TextStyle(
+                                                                   fontSize: 12,
+                                                                   color: Color(0xFFF96222),
+                                                                   fontWeight: FontWeight.w500,
+                                                                 ),
+                                                               ),
+                                                             ],
+                                                           ),
+                                               ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        if (!item.isImageSelected)
+                                          Expanded(
+                                            child: Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: Colors.red.withOpacity(0.3),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: Colors.red.shade600,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      "Image required",
+                                                      style: TextStyle(
+                                                        color: Colors.red.shade600,
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                   ),
                                 ],
                               ),
@@ -648,6 +1080,8 @@ class _AddStallViewState extends State<AddStallView> {
       ),
     );
   }
+
+       
 
   Widget buildDateField(
       BuildContext context, String label, TextEditingController controller) {

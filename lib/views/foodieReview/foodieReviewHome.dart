@@ -29,8 +29,40 @@ class _MainScreenState extends State<FoodieReviewHomeMap> {
           currentBackPressTime = DateTime.now();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Press again to exit'),
-              duration: Duration(seconds: 2),
+              content: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Press again to exit',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.blue.shade600, // Info color
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              margin: const EdgeInsets.all(16),
+              duration: const Duration(seconds: 2),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
           );
           return false;

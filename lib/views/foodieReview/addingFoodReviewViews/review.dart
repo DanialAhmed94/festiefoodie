@@ -32,16 +32,19 @@ class _ReviewState extends State<Review> {
   void initializeScores() {
     List<String> categories = [
       'Cleanliness',
+      'Hygiene',
       'Tate & Flavour',
       'Presentation & Plating',
       'Quality & Freshness Of Ingredients',
-      'Authenticity & Creativity',
+      'Organic availability',
       'Cooking Techniques & Temperature',
       'Freshness'
       'Dining Experience',
       'Value For Money',
 
-      'Hygiene',
+      'Sustainable Packaging',
+      'Recycling options',
+      'Vegan / Vegetarian / Dietary Requirements',
     ];
 
     scores = Map.fromIterable(
@@ -123,15 +126,19 @@ class _ReviewState extends State<Review> {
 
     List<String> categories = [
       'Cleanliness',
-      'Taste & Flavour',
+      'Hygiene',
+      'Tate & Flavour',
       'Presentation & Plating',
       'Quality & Freshness Of Ingredients',
-      'Authenticity & Creativity',
+      'Organic availability',
       'Cooking Techniques & Temperature',
-      'Freshness',
+      'Freshness'
+          'Dining Experience',
       'Value For Money',
-      'Dining Experience',
-      'Hygiene',
+
+      'Sustainable Packaging',
+      'Recycling options',
+      'Vegan / Vegetarian / Dietary Requirements',
     ];
 
     return categories.map((category) {

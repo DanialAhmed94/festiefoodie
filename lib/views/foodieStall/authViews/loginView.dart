@@ -27,6 +27,9 @@ class _LoginViewState extends State<LoginView> {
 
   // 1) This will let us show/hide the progress indicator
   bool _isLoading = false;
+  
+  // Show/hide password state
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -103,7 +106,7 @@ class _LoginViewState extends State<LoginView> {
                   TextFormField(
                     controller: _passwordController,
                     focusNode: _passwordFocus,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: const Color(0xFF272727).withOpacity(0.2),
@@ -114,6 +117,17 @@ class _LoginViewState extends State<LoginView> {
                         borderSide: BorderSide.none,
                       ),
                       prefixIcon: const Icon(Icons.lock, color: Colors.white),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
                     ),
                     keyboardType: TextInputType.visiblePassword,
                     textInputAction: TextInputAction.done,

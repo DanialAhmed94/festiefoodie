@@ -20,6 +20,11 @@ class ViewAllStallsView extends StatefulWidget {
 }
 
 class _ViewAllStallsViewState extends State<ViewAllStallsView> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _isSearching = false;
+  List<Stall> _filteredStalls = [];
+
   @override
   void initState() {
     super.initState();
@@ -29,59 +34,65 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
           context, widget.festivalId,
           isfromReviewSection: false);
     });
+    
+    // Listen to search controller changes
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
-  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      _isSearching = query.isNotEmpty;
+    });
+    
+    if (query.isEmpty) {
+      setState(() {
+        _filteredStalls = [];
+      });
+      return;
+    }
+
+    // Get the current stall provider
+    final stallProvider = Provider.of<StallProvider>(context, listen: false);
+    
+    // Filter stalls based on search query
+    final filtered = stallProvider.stallsByFestival.where((stall) {
+      final stallName = (stall.stallName ?? '').toLowerCase();
+      final festivalName = (stall.festivalName ?? '').toLowerCase();
+      
+      return stallName.contains(query) || 
+             festivalName.contains(query);
+    }).toList();
+
+    setState(() {
+      _filteredStalls = filtered;
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _isSearching = false;
+      _filteredStalls = [];
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return BackgroundScaffold(
       child: Consumer<StallProvider>(
         builder: (context, stallProvider, child) {
-          Widget body;
-
-          if (stallProvider.isFetching &&
-              stallProvider.stallsByFestival.isEmpty) {
-            body = const Center(child: CircularProgressIndicator());
-          } else if (stallProvider.errorMessage != null &&
-              stallProvider.stallsByFestival.isEmpty) {
-            body = Center(
-              child: Text(
-                stallProvider.errorMessage!,
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-            );
-          } else if (!stallProvider.isFetching &&
-              stallProvider.errorMessage == null &&
-              stallProvider.stallsByFestival.isEmpty) {
-            body = const Center(
-              child: Text(
-                "No stalls available.",
-                style: TextStyle(fontSize: 16),
-              ),
-            );
-          } else {
-            body = ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: stallProvider.stallsByFestival.length,
-              itemBuilder: (context, index) {
-                final stall = stallProvider.stallsByFestival[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildStallCard(
-                      context,
-                      MediaQuery.of(context).size.width * 0.95,
-                      stall.stallName,
-                      stall),
-                );
-              },
-            );
-          }
-
           return Column(
             children: [
+              // AppBar
               AppBar(
                 backgroundColor: Colors.transparent,
                 title: const Text(
@@ -98,14 +109,242 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                   icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
                 ),
               ),
-              const SizedBox(height: 10),
+              
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: "Search stalls...",
+                      hintStyle: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w400,
+                      ),
+                      prefixIcon: Container(
+                        margin: const EdgeInsets.all(12),
+                        child: Icon(
+                          Icons.search,
+                          color: const Color(0xFFF96222),
+                          size: 24,
+                        ),
+                      ),
+                      suffixIcon: _isSearching
+                          ? Container(
+                              margin: const EdgeInsets.all(12),
+                              child: GestureDetector(
+                                onTap: _clearSearch,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.close,
+                                    color: Colors.grey[600],
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFF96222),
+                          width: 2,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Search Results Header
+              if (_isSearching) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        color: const Color(0xFFF96222),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Search Results (${_filteredStalls.length})",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Content
               Expanded(
-                child: body,
+                child: _buildContent(stallProvider),
               ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildContent(StallProvider stallProvider) {
+    if (stallProvider.isFetching && stallProvider.stallsByFestival.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
+        ),
+      );
+    } else if (stallProvider.errorMessage != null && stallProvider.stallsByFestival.isEmpty) {
+      return Center(
+        child: Text(
+          stallProvider.errorMessage!,
+          style: const TextStyle(fontSize: 16, color: Colors.red),
+          textAlign: TextAlign.center,
+        ),
+      );
+    } else if (_isSearching && _filteredStalls.isEmpty) {
+      return _buildNoResultsWidget();
+    } else if ((_isSearching ? _filteredStalls : stallProvider.stallsByFestival).isEmpty) {
+      return _buildNoStallsWidget();
+    } else {
+      return _buildStallsList(_isSearching ? _filteredStalls : stallProvider.stallsByFestival);
+    }
+  }
+
+  Widget _buildNoResultsWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.search_off,
+              size: 60,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "No stalls found",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Try searching with different keywords",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoStallsWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.store,
+              size: 60,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "No stalls available",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Check back later for new stalls",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStallsList(List<Stall> stalls) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: stalls.length,
+      itemBuilder: (context, index) {
+        final stall = stalls[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildStallCard(
+              context,
+              MediaQuery.of(context).size.width * 0.95,
+              stall.stallName,
+              stall),
+        );
+      },
     );
   }
 
@@ -147,6 +386,9 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                       height: 36,
                       child: ElevatedButton(
                         onPressed: () {
+                          // Clear search and unfocus keyboard
+                          _clearSearch();
+                          // Navigate to stall details
                           Navigator.push(
                               context,
                               FadePageRouteBuilder(

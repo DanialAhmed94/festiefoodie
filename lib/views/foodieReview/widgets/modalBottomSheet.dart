@@ -236,17 +236,40 @@ showMarkerInfo(BuildContext context, FestivalResource festival) {
 void showFloatingSnackbar(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(message),
-      action: SnackBarAction(
-        label: "OK",
-        textColor: Colors.white,
-        onPressed: () {},
+      content: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            color: Colors.white,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
+      backgroundColor: const Color(0xFFF96222), // Brand orange color
       behavior: SnackBarBehavior.floating,
-      backgroundColor: Colors.black87,
-      margin: EdgeInsets.all(10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: Duration(seconds: 3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 3),
+      action: SnackBarAction(
+        label: 'OK',
+        textColor: Colors.white,
+        onPressed: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        },
+      ),
     ),
   );
 }

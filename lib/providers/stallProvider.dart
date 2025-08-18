@@ -46,7 +46,7 @@ class StallProvider extends ChangeNotifier {
   Future<bool> fetchStallsByFestival(BuildContext context, String festivalId, {required bool isfromReviewSection}) async {
     _isFetching = true;
     _errorMessage = null;
-    _stallsByFestival=[];
+    _stallsByFestival = [];
     notifyListeners();
 
     final response = await getStallsByFestival(context, festivalId, isfromReviewSection: isfromReviewSection);

@@ -53,12 +53,39 @@ Future<void> addStallApi(
     }
   }
 
-  // Optionally, include menu items if they have been added
+  // Include menu items if they have been added
   if (menuItems != null && menuItems.isNotEmpty) {
-    stallData["menu"] = menuItems.map((item) => {
-      "dish_name": item.dishNameController.text,
-      "price": item.priceController.text,
-    }).toList();
+    List<Map<String, dynamic>> menuData = [];
+    
+    for (var item in menuItems) {
+      // Validate that image is selected for each menu item
+      if (item.selectedImage == null || !item.isImageSelected) {
+        showErrorDialog(context, "All menu items must have images selected", []);
+        return;
+      }
+      
+                      // Combine currency symbol with price
+                String priceWithCurrency = "${item.currencySymbol}${item.priceController.text}";
+                
+                Map<String, dynamic> menuItemData = {
+                  "dish_name": item.dishNameController.text,
+                  "price": priceWithCurrency,
+                };
+      
+      // Add dish image as base64 (required for all menu items)
+      try {
+        final bytes = await item.selectedImage!.readAsBytes();
+        menuItemData["dish_image"] = base64Encode(bytes);
+      } catch (error) {
+        print("Error processing menu item image: $error");
+        showErrorDialog(context, "Error processing menu item image", []);
+        return;
+      }
+      
+      menuData.add(menuItemData);
+    }
+    
+    stallData["menu"] = menuData;
   }
 
   try {
@@ -78,10 +105,43 @@ Future<void> addStallApi(
       Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (responseData['status'] == 200) {
-        // Show success message
+        // Show success message with brand styling
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(responseData['message'] ?? "Stall created successfully"),
+            content: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    responseData['message'] ?? "Stall created successfully",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFF96222), // Brand orange color
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
         // Navigate to the FoodieStallHome (or any other desired screen)
