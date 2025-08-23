@@ -59,6 +59,13 @@ class _GoogleMapViewState extends State<GoogleMapView>
   bool _isFetchingAddress = false;
   bool _isInitialLoad = true;
   bool _showLoadingOverlay = true;
+  
+  // New variables for manual input mode
+  bool _isManualMode = false;
+  final TextEditingController _latitudeController = TextEditingController();
+  final TextEditingController _longitudeController = TextEditingController();
+  final FocusNode _latitudeFocusNode = FocusNode();
+  final FocusNode _longitudeFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -86,6 +93,11 @@ class _GoogleMapViewState extends State<GoogleMapView>
     _isDisposed = true;
     // Unregister the observer
     WidgetsBinding.instance.removeObserver(this);
+    // Dispose controllers and focus nodes
+    _latitudeController.dispose();
+    _longitudeController.dispose();
+    _latitudeFocusNode.dispose();
+    _longitudeFocusNode.dispose();
     super.dispose();
   }
 
@@ -334,23 +346,109 @@ class _GoogleMapViewState extends State<GoogleMapView>
     );
   }
 
+  // Toggle between map mode and manual mode
+  void _toggleMode() {
+    setState(() {
+      _isManualMode = !_isManualMode;
+      if (_isManualMode) {
+        // Clear map selection when switching to manual mode
+        selectedLatitude = null;
+        selectedLongitude = null;
+        selectedAddress = null;
+        _markers.removeWhere((marker) => marker.markerId == MarkerId('tappedLocation'));
+      } else {
+        // Clear manual input when switching to map mode
+        _latitudeController.clear();
+        _longitudeController.clear();
+      }
+    });
+  }
+
+  // Validate and process manual coordinates
+  void _processManualCoordinates() async {
+    final latText = _latitudeController.text.trim();
+    final lngText = _longitudeController.text.trim();
+    
+    if (latText.isEmpty || lngText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter both latitude and longitude'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final lat = double.parse(latText);
+      final lng = double.parse(lngText);
+      
+      // Validate latitude range (-90 to 90)
+      if (lat < -90 || lat > 90) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Latitude must be between -90 and 90'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      // Validate longitude range (-180 to 180)
+      if (lng < -180 || lng > 180) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Longitude must be between -180 and 180'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        selectedLatitude = lat.toString();
+        selectedLongitude = lng.toString();
+        _isFetchingAddress = true;
+      });
+
+      // Get address for the manual coordinates
+      await _getAddressAndUpdateUI(lat, lng);
+      
+      if (!_isDisposed) {
+        setState(() => _isFetchingAddress = false);
+      }
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter valid numeric coordinates'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _initialPosition,
-                zoom: 14.0,
-              ),
-              markers: _markers,
-              onMapCreated: (GoogleMapController controller) {
-                _mapController = controller;
-                setState(() => _mapLoaded = true);
-              },
-              onTap: (LatLng tappedLocation) async {
+            child: AbsorbPointer(
+              absorbing: _isManualMode,
+              child: Opacity(
+                opacity: _isManualMode ? 0.6 : 1.0,
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _initialPosition,
+                    zoom: 14.0,
+                  ),
+                  markers: _markers,
+                  onMapCreated: (GoogleMapController controller) {
+                    _mapController = controller;
+                    setState(() => _mapLoaded = true);
+                  },
+                  onTap: _isManualMode ? null : (LatLng tappedLocation) async {
                 if (!_mapLoaded) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -421,6 +519,8 @@ class _GoogleMapViewState extends State<GoogleMapView>
               compassEnabled: false,
             ),
           ),
+        ),
+      ),
           // Loading overlay to prevent blue screen flash
           if (_showLoadingOverlay)
             Positioned.fill(
@@ -466,7 +566,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
             right: 15,
             child: FloatingActionButton(
               backgroundColor: Colors.white,
-              onPressed: () async {
+              onPressed: _isManualMode ? null : () async {
                 Position position = await Geolocator.getCurrentPosition(
                   desiredAccuracy: LocationAccuracy.high,
                 );
@@ -476,9 +576,114 @@ class _GoogleMapViewState extends State<GoogleMapView>
                   CameraUpdate.newLatLngZoom(currentLocation, 14.0),
                 );
               },
-              child: Icon(Icons.my_location, color: Colors.black),
+              child: Icon(
+                Icons.my_location, 
+                color: _isManualMode ? Colors.grey : Colors.black
+              ),
             ),
           ),
+          // Manual Input Fields (only visible in manual mode)
+          if (_isManualMode)
+            Positioned(
+              bottom: 100,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter Coordinates Manually',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFF96222),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _latitudeController,
+                            focusNode: _latitudeFocusNode,
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Latitude',
+                              hintText: 'e.g., 51.5074',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFFF96222)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFFF96222), width: 2),
+                              ),
+                              labelStyle: const TextStyle(color: Color(0xFFF96222)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _longitudeController,
+                            focusNode: _longitudeFocusNode,
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Longitude',
+                              hintText: 'e.g., -0.1278',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFFF96222)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(color: Color(0xFFF96222), width: 2),
+                              ),
+                              labelStyle: const TextStyle(color: Color(0xFFF96222)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _processManualCoordinates,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF96222),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Validate Coordinates',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Positioned(
             bottom: 29,
             left: 100,
@@ -540,6 +745,49 @@ class _GoogleMapViewState extends State<GoogleMapView>
                   icon: SvgPicture.asset(AppConstants.backIcon),
                   onPressed: () => Navigator.pop(context),
                 ),
+                actions: [
+                  // Toggle Mode Button
+                  Container(
+                    margin: const EdgeInsets.only(right: 16.0),
+                    child: ElevatedButton(
+                      onPressed: _toggleMode,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isManualMode 
+                            ? const Color(0xFFF96222) 
+                            : Colors.white,
+                        foregroundColor: _isManualMode 
+                            ? Colors.white 
+                            : const Color(0xFFF96222),
+                        elevation: 2,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: const Color(0xFFF96222),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _isManualMode ? Icons.edit_location : Icons.map,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _isManualMode ? 'Manual' : 'Map',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 backgroundColor: Colors.transparent,
                 elevation: 0,
               ),
