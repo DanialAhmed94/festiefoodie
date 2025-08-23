@@ -17,23 +17,23 @@ Future<void> LogInApi(
   final url = Uri.parse("${AppConstants.baseUrl}/authin");
 
   final SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? deviceId= await prefs.getString("fcm_token");
+  String? deviceId = await prefs.getString("fcm_token");
 
   final Map<String, dynamic> logInData = {
     'email': email,
     'password': password,
     'device_token': deviceId,
-    'app_type':"festiefoodie",
+    'app_type': "festiefoodie",
   };
   try {
     final response = await http
         .post(
-      url,
-      headers: {
-        'Content-Type': 'application/json', // Set the content type to JSON
-      },
-      body: jsonEncode(logInData),
-    )
+          url,
+          headers: {
+            'Content-Type': 'application/json', // Set the content type to JSON
+          },
+          body: jsonEncode(logInData),
+        )
         .timeout(const Duration(seconds: 30));
 
     if (response.statusCode == 200) {
@@ -66,7 +66,10 @@ Future<void> LogInApi(
 
         print("api hit ${token}");
         Navigator.pushReplacement(
-            context, FadePageRouteBuilder(widget:  FoodieStallHome(),));
+            context,
+            FadePageRouteBuilder(
+              widget: FoodieStallHome(),
+            ));
         // context, FadePageRouteBuilder(widget: PremiumView()));
       } else {
         // Server-side validation or other errors
@@ -77,10 +80,11 @@ Future<void> LogInApi(
       // Handle client-side errors (e.g., validation failed)
       final Map<String, dynamic> responseData = jsonDecode(response.body);
       showErrorDialog(context, responseData['message'], responseData['errors']);
-    }else if (response.statusCode == 403) {
+    } else if (response.statusCode == 403) {
       // Handle client-side errors (e.g., validation failed)
       final Map<String, dynamic> responseData = jsonDecode(response.body);
-      showExpiredAccountErrorDialog(context, responseData['message'], responseData['errors']);
+      showExpiredAccountErrorDialog(
+          context, responseData['message'], responseData['errors']);
     } else {
       // Handle other HTTP errors
       showErrorDialog(
@@ -107,10 +111,11 @@ Future<void> LogInApi(
         [],
       );
     }
-  }catch (error) {
+  } catch (error) {
     showErrorDialog(context, "Login failed with error: $error", []);
   }
 }
+
 void showExpiredAccountErrorDialog(
     BuildContext context, String message, List<dynamic> errors) {
   showDialog(
@@ -127,7 +132,7 @@ void showExpiredAccountErrorDialog(
               Column(
                 children: errors
                     .map((error) => Text(error.toString(),
-                    style: TextStyle(color: Colors.red)))
+                        style: TextStyle(color: Colors.red)))
                     .toList(),
               ),
           ],

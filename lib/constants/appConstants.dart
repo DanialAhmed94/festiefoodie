@@ -1,11 +1,14 @@
-class AppConstants{
+class AppConstants {
   static String baseUrl = "https://stagingcrapadvisor.semicolonstech.com/api";
-  static String festivalImageUrl = "https://stagingcrapadvisor.semicolonstech.com/asset/festivals/";
+  static String festivalImageUrl =
+      "https://stagingcrapadvisor.semicolonstech.com/asset/festivals/";
 
   static String splashBackground = "assets/images/splash.png";
   static String scaffoldBackground = "assets/svgs/scaffoldBackground.svg";
-  static String authenitactionscaffoldBackground = "assets/images/authenticationBackground.png";
-  static String reviewScaffoldBackground = "assets/svgs/reviewsScaffoldBackground.svg";
+  static String authenitactionscaffoldBackground =
+      "assets/images/authenticationBackground.png";
+  static String reviewScaffoldBackground =
+      "assets/svgs/reviewsScaffoldBackground.svg";
   static String crapChat = "assets/svgs/crapChat.svg";
   static String drawerIcon = "assets/svgs/drawersvg1.svg";
   //static String favFod = "assets/images/favouritefood.png";
@@ -28,9 +31,11 @@ class AppConstants{
   static String festivalImage = "assets/svgs/festivalImage.svg";
   static String mapPreview = "assets/images/mapPreview.png";
   static String customMarker = "assets/imagescustomMarker.png";
-  static String currentLocationMarker = "assets/images/currentLocationMarker.png";
+  static String currentLocationMarker =
+      "assets/images/currentLocationMarker.png";
   static String dummyFestivalImage = "assets/images/dummyFestivalImage.png";
   static String dummyStallImage = "assets/images/dummyStallImage.png";
   static String drawerBackground = "assets/images/drawerBackground (2).png";
 
+  static String submitButton = "assets/svg/newsubmitButton.svg";
 }

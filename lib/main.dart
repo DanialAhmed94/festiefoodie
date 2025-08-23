@@ -13,13 +13,15 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 import 'splashView.dart';
 import 'views/foodieStall/foofieStallHome.dart';
 import 'views/foodieStall/authViews/loginView.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
@@ -85,11 +87,9 @@ Future<String?> getCurrentUserId() async {
   return userId?.toString(); // returns null if no one is logged in
 }
 
-
-
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp();
 
   // Must be before runApp
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -109,12 +109,17 @@ void main() async{
   String? token = await messaging.getToken();
   print('FCM Token: $token');
 
+  await _saveFcmTokenToServer(token);
 
-
+  // Listen for token refresh
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+    print("FCM Token refreshed: $newToken");
+    await _saveFcmTokenToServer(newToken);
+  });
 
   // Set the preferred orientations to portrait only
   await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,   // Portrait mode (upright)
+    DeviceOrientation.portraitUp, // Portrait mode (upright)
     DeviceOrientation.portraitDown, // Portrait mode (upside-down)
   ]);
 
@@ -128,13 +133,26 @@ void main() async{
   );
 
   runApp((MultiProvider(providers: [
-      ChangeNotifierProvider(create: (_) => FestivalProvider()),
-      ChangeNotifierProvider(create: (_) => RatingsProvider()),
-      ChangeNotifierProvider(create: (_) => EventProvider()),
-      ChangeNotifierProvider(create: (_) => StallProvider()),
-      ChangeNotifierProvider(create: (_) => MenuProvider()),
-  ],
-     child: const MyApp())));
+    ChangeNotifierProvider(create: (_) => FestivalProvider()),
+    ChangeNotifierProvider(create: (_) => RatingsProvider()),
+    ChangeNotifierProvider(create: (_) => EventProvider()),
+    ChangeNotifierProvider(create: (_) => StallProvider()),
+    ChangeNotifierProvider(create: (_) => MenuProvider()),
+  ], child: const MyApp())));
+}
+
+Future<void> _saveFcmTokenToServer(String? token) async {
+  if (token == null) return;
+
+  await saveFcmTokenToPrefs(token);
+
+  final userId = await getCurrentUserId();
+  if (userId != null) {
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(userId)
+        .update({"fcmToken": token});
+  }
 }
 
 Future<void> initializeLocalNotifications() async {
@@ -169,7 +187,8 @@ Future<void> initializeLocalNotifications() async {
   );
 
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 }
 
@@ -229,5 +248,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
-

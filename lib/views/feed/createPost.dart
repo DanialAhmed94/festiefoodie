@@ -6,7 +6,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
-
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -86,11 +85,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
   int _bytesTransferred = 0;
 
   // Connectivity
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   bool _isConnected = true;
 
   // Store postId for use in retries
   String? _currentPostId;
+
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+  List<ConnectivityResult> _connectionStatus = [ConnectivityResult.none];
 
   @override
   void initState() {
@@ -104,24 +105,33 @@ class _CreatePostPageState extends State<CreatePostPage> {
   void dispose() {
     _descriptionController.dispose();
     _connectivitySubscription.cancel();
-    VideoCompress.cancelCompression(); // Cancel any ongoing video compressions
+    VideoCompress.cancelCompression();
     VideoCompress.dispose();
-    // Ensure All Resources Are Canceled on Dispose
     _cancelAllUploads(fromDispose: true);
     super.dispose();
   }
 
-  /// Check the initial connectivity status
+  /// ✅ Check the initial connectivity status (List)
   Future<void> _checkInitialConnectivity() async {
-    ConnectivityResult result = await Connectivity().checkConnectivity();
+    final List<ConnectivityResult> result =
+        await Connectivity().checkConnectivity();
     _updateConnectionStatus(result);
   }
 
-  /// Update the connectivity status
-  void _updateConnectionStatus(ConnectivityResult result) {
+  /// ✅ Single handler for List<ConnectivityResult>
+  void _updateConnectionStatus(List<ConnectivityResult> result) {
     setState(() {
-      _isConnected = result != ConnectivityResult.none;
+      _connectionStatus = result;
+      _isConnected = !result.contains(ConnectivityResult.none);
     });
+
+    if (result.contains(ConnectivityResult.mobile)) {
+      print("📱 Mobile network available");
+    } else if (result.contains(ConnectivityResult.wifi)) {
+      print("📶 WiFi available");
+    } else if (result.contains(ConnectivityResult.none)) {
+      print("🚫 No connection");
+    }
   }
 
   /// Helper method to map FirebaseException codes to user-friendly messages
@@ -159,7 +169,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       }
     } on FirebaseException catch (e) {
       String? errorMessage = getFirebaseErrorMessage(e);
-      if (errorMessage!=null) { // Only show if not canceled
+      if (errorMessage != null) {
+        // Only show if not canceled
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
@@ -169,7 +180,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content:
-            Text("An unexpected error occurred while picking images.")),
+                Text("An unexpected error occurred while picking images.")),
       );
     }
   }
@@ -183,8 +194,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       );
 
       if (result != null) {
-        List<File> files =
-        result.paths.map((path) => File(path!)).toList();
+        List<File> files = result.paths.map((path) => File(path!)).toList();
         setState(() {
           for (var file in files) {
             _videoItems.add(
@@ -202,7 +212,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       }
     } on FirebaseException catch (e) {
       String? errorMessage = getFirebaseErrorMessage(e);
-      if (errorMessage!=null) { // Only show if not canceled
+      if (errorMessage != null) {
+        // Only show if not canceled
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
@@ -212,7 +223,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content:
-            Text("An unexpected error occurred while picking videos.")),
+                Text("An unexpected error occurred while picking videos.")),
       );
     }
   }
@@ -226,8 +237,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     int targetSizeInBytes = 500 * 1024; // 500 KB
 
     final Directory tempDir = await getTemporaryDirectory();
-    String targetPath =
-        '${tempDir.path}/${Uuid().v4()}.jpg';
+    String targetPath = '${tempDir.path}/${Uuid().v4()}.jpg';
 
     File? compressedFile;
     bool isCompressed = false;
@@ -257,8 +267,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   /// Generate a thumbnail for an image by resizing it
   Future<File> _generateImageThumbnail(File file) async {
     final Directory tempDir = await getTemporaryDirectory();
-    String thumbPath =
-        '${tempDir.path}/${Uuid().v4()}_thumb.jpg';
+    String thumbPath = '${tempDir.path}/${Uuid().v4()}_thumb.jpg';
 
     List<int>? thumbBytes = await FlutterImageCompress.compressWithFile(
       file.absolute.path,
@@ -273,13 +282,16 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     return File(thumbPath)..writeAsBytesSync(thumbBytes);
   }
+
   Future<File> _compressVideo(File file) async {
     final Directory tempDir = await getTemporaryDirectory();
     String outputPath = '${tempDir.path}/${Uuid().v4()}.mp4';
 
     // Get video metadata
     MediaInfo? info = await VideoCompress.getMediaInfo(file.path);
-    double duration = info?.duration != null ? info!.duration! / 1000 : 1.0; // Duration in seconds
+    double duration = info?.duration != null
+        ? info!.duration! / 1000
+        : 1.0; // Duration in seconds
     int videoWidth = info?.width ?? 0;
     int videoHeight = info?.height ?? 0;
 
@@ -302,15 +314,18 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
         Timer.periodic(Duration(seconds: 1), (timer) async {
           int currentTime = DateTime.now().millisecondsSinceEpoch;
-          double elapsedTime = (currentTime - startTime) / 1000; // Elapsed time in seconds
+          double elapsedTime =
+              (currentTime - startTime) / 1000; // Elapsed time in seconds
 
           if (elapsedTime < duration) {
-            double progress = elapsedTime / duration; // Calculate progress based on duration
+            double progress =
+                elapsedTime / duration; // Calculate progress based on duration
 
             if (mounted) {
               setState(() {
                 _compressionProgress = progress;
-                _statusMessage = "Compressing... ${(progress * 100).toStringAsFixed(0)}%";
+                _statusMessage =
+                    "Compressing... ${(progress * 100).toStringAsFixed(0)}%";
               });
             }
           } else {
@@ -329,19 +344,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
         if (mounted) {
           completer.completeError(Exception("Video compression failed."));
         } else {
-          completer.completeError(Exception("Widget disposed before compression completed."));
+          completer.completeError(
+              Exception("Widget disposed before compression completed."));
         }
       }
     } catch (e) {
       if (mounted) {
         completer.completeError(Exception("Video compression failed: $e"));
       } else {
-        completer.completeError(Exception("Widget disposed before compression completed."));
+        completer.completeError(
+            Exception("Widget disposed before compression completed."));
       }
     }
 
     return completer.future;
   }
+
   /// Compress a video using FFmpegKit with progress callbacks
   // Future<File> _compressVideo(File file) async {
   //   final Directory tempDir = await getTemporaryDirectory();
@@ -501,7 +519,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
         final File originalFile = File(image.path);
         final File compressedFile = await _compressImage(originalFile);
         debugPrint('Completed compression for image: ${image.name}');
-        final String fileName = 'img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final String fileName =
+            'img_${DateTime.now().millisecondsSinceEpoch}.jpg';
         tasks.add(UploadTaskModel(
           id: Uuid().v4(),
           file: compressedFile,
@@ -512,11 +531,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
           _compressionProgress = filesCompressed / totalFilesToCompress;
           _currentCompressingFileName = null;
         });
-        debugPrint('Compression Progress: ${(_compressionProgress * 100).toStringAsFixed(0)}%');
+        debugPrint(
+            'Compression Progress: ${(_compressionProgress * 100).toStringAsFixed(0)}%');
 
         // Generate and Add Thumbnail for Each Image
         final File thumbnail = await _generateImageThumbnail(compressedFile);
-        final String thumbFileName = 'thumb_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final String thumbFileName =
+            'thumb_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
         tasks.add(UploadTaskModel(
           id: Uuid().v4(),
           file: thumbnail,
@@ -529,12 +550,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
       for (VideoItem videoItem in _videoItems) {
         if (!mounted) break; // Exit if widget is no longer mounted
         setState(() {
-          _currentCompressingFileName = 'Compressing Video: ${videoItem.videoFile.path.split('/').last}';
+          _currentCompressingFileName =
+              'Compressing Video: ${videoItem.videoFile.path.split('/').last}';
         });
-        debugPrint('Starting compression for video: ${videoItem.videoFile.path.split('/').last}');
-        final File compressedVideoFile = await _compressVideo(videoItem.videoFile);
-        debugPrint('Completed compression for video: ${videoItem.videoFile.path.split('/').last}');
-        final String fileName = 'vid_${DateTime.now().millisecondsSinceEpoch}.mp4';
+        debugPrint(
+            'Starting compression for video: ${videoItem.videoFile.path.split('/').last}');
+        final File compressedVideoFile =
+            await _compressVideo(videoItem.videoFile);
+        debugPrint(
+            'Completed compression for video: ${videoItem.videoFile.path.split('/').last}');
+        final String fileName =
+            'vid_${DateTime.now().millisecondsSinceEpoch}.mp4';
         tasks.add(UploadTaskModel(
           id: Uuid().v4(),
           file: compressedVideoFile,
@@ -545,7 +571,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
           _compressionProgress = filesCompressed / totalFilesToCompress;
           _currentCompressingFileName = null;
         });
-        debugPrint('Compression Progress: ${(_compressionProgress * 100).toStringAsFixed(0)}%');
+        debugPrint(
+            'Compression Progress: ${(_compressionProgress * 100).toStringAsFixed(0)}%');
 
         // Generate and Add Thumbnail for Each Video
         final File? thumbnail = await VideoCompress.getFileThumbnail(
@@ -555,7 +582,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
         );
 
         if (thumbnail != null) {
-          final String thumbFileName = 'thumb_vid_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final String thumbFileName =
+              'thumb_vid_${DateTime.now().millisecondsSinceEpoch}.jpg';
           tasks.add(UploadTaskModel(
             id: Uuid().v4(),
             file: thumbnail,
@@ -588,7 +616,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       }
 
       // Wait for all uploads to complete
-      await Future.wait(_uploadTasks.map((task) => task.uploadTask!.whenComplete(() {})));
+      await Future.wait(
+          _uploadTasks.map((task) => task.uploadTask!.whenComplete(() {})));
 
       // Check for any failed uploads
       bool hasFailures = _uploadTasks.any((task) => task.isFailed);
@@ -596,7 +625,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content:
-              Text("Some files failed to upload. Please retry uploading.")),
+                  Text("Some files failed to upload. Please retry uploading.")),
         );
         setState(() {
           _isUploading = false;
@@ -649,7 +678,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
         'likesCount': 0,
         'likes': [],
       }).timeout(const Duration(seconds: 30), onTimeout: () {
-        throw TimeoutException("The connection has timed out. Please try again!");
+        throw TimeoutException(
+            "The connection has timed out. Please try again!");
       });
 
       // Delete temporary compressed files after successful upload
@@ -668,12 +698,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
       showDialog(
         context: context,
         barrierDismissible:
-        false, // Prevents dialog from closing on tap outside
+            false, // Prevents dialog from closing on tap outside
         builder: (BuildContext context) {
           return AlertDialog(
             title: const Text("Success"),
-            content:
-            const Text("Your post has been uploaded successfully!"),
+            content: const Text("Your post has been uploaded successfully!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -693,7 +722,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       );
     } on FirebaseException catch (e) {
       String? errorMessage = getFirebaseErrorMessage(e);
-      if (errorMessage!=null) { // Only show if not canceled
+      if (errorMessage != null) {
+        // Only show if not canceled
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
@@ -701,7 +731,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       // If e.code == 'canceled', do not show any SnackBar here
     } on TimeoutException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Request timed out. Please try again.")),
+        SnackBar(
+            content: Text(e.message ?? "Request timed out. Please try again.")),
       );
     } catch (e) {
       debugPrint('Unexpected error: $e'); // or print(e)
@@ -712,7 +743,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       //       Text("An unexpected error occurred. Please try again.")),
       // );
     } finally {
-      if (mounted) { // Check if mounted before calling setState
+      if (mounted) {
+        // Check if mounted before calling setState
         setState(() {
           _isCompressing = false;
           _isUploading = false;
@@ -785,7 +817,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       total += task.progress;
     }
     setState(() {
-      _overallProgress = _uploadTasks.isNotEmpty ? total / _uploadTasks.length : 0.0;
+      _overallProgress =
+          _uploadTasks.isNotEmpty ? total / _uploadTasks.length : 0.0;
     });
   }
 
@@ -804,8 +837,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     if (!_isConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-            Text("No internet connection. Please try again later.")),
+            content: Text("No internet connection. Please try again later.")),
       );
       return;
     }
@@ -842,7 +874,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
             await task.uploadTask!.cancel();
             debugPrint('Canceled upload task: ${task.fileName}');
           } catch (e) {
-            debugPrint('Failed to cancel upload task: ${task.fileName}, Error: $e');
+            debugPrint(
+                'Failed to cancel upload task: ${task.fileName}, Error: $e');
           }
         }
       }).toList();
@@ -860,7 +893,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
     } catch (e) {
       debugPrint('Error during cancellation: $e');
     } finally {
-      if (!fromDispose && mounted) { // Only setState if not called from dispose and still mounted
+      if (!fromDispose && mounted) {
+        // Only setState if not called from dispose and still mounted
         setState(() {
           _isUploading = false;
           _isCompressing = false;
@@ -880,6 +914,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       }
     }
   }
+
   /// Handles the back navigation action.
   /// Returns `true` if the navigation should proceed, otherwise `false`.
   Future<bool> _handleBackAction() async {
@@ -946,7 +981,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ),
                   backgroundColor: Colors.transparent,
                   elevation: 0,
-                  leadingWidth: 100, // Adjust the width to accommodate both widgets
+                  leadingWidth:
+                      100, // Adjust the width to accommodate both widgets
                   leading: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
@@ -962,9 +998,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       // Optional: Add spacing between the back button and avatar
                       const SizedBox(width: 8),
                       GestureDetector(
-
-                        child:  CircleAvatar(
-                          backgroundImage: AssetImage(AppConstants.foodielogo,
+                        child: CircleAvatar(
+                          backgroundImage: AssetImage(
+                            AppConstants.foodielogo,
                           ),
                           radius: 16, // Adjust the size as needed
                         ),
@@ -989,8 +1025,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
             Positioned.fill(
               top: kToolbarHeight + 60, // Adjusted to account for AppBar height
               child: SingleChildScrollView(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1029,15 +1065,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed:
-                            _isUploading || _isCompressing || !_isConnected
-                                ? null
-                                : _pickImages,
+                                _isUploading || _isCompressing || !_isConnected
+                                    ? null
+                                    : _pickImages,
                             icon: const Icon(Icons.photo_library),
                             label: const Text("Pick Images"),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blueAccent, // Button color
+                              backgroundColor:
+                                  Colors.blueAccent, // Button color
                               foregroundColor: Colors.white, // Text/icon color
-                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16.0),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
@@ -1050,15 +1088,16 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed:
-                            _isUploading || _isCompressing || !_isConnected
-                                ? null
-                                : _pickVideos,
+                                _isUploading || _isCompressing || !_isConnected
+                                    ? null
+                                    : _pickVideos,
                             icon: const Icon(Icons.videocam),
                             label: const Text("Pick Videos"),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.redAccent,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16.0),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
@@ -1074,33 +1113,32 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed:
-                        _isUploading || _isCompressing || !_isConnected
-                            ? null
-                            : () => _uploadPost(),
+                            _isUploading || _isCompressing || !_isConnected
+                                ? null
+                                : () => _uploadPost(),
                         child: _isUploading || _isCompressing
                             ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Text(_isCompressing
-                                ? "Compressing..."
-                                : "Uploading..."),
-                          ],
-                        )
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(_isCompressing
+                                      ? "Compressing..."
+                                      : "Uploading..."),
+                                ],
+                              )
                             : const Text("Upload Post"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
-                          padding:
-                          const EdgeInsets.symmetric(vertical: 16.0),
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
                           textStyle: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1137,10 +1175,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                   children: [
                                     Container(
                                       margin:
-                                      const EdgeInsets.only(right: 12.0),
+                                          const EdgeInsets.only(right: 12.0),
                                       child: ClipRRect(
                                         borderRadius:
-                                        BorderRadius.circular(15.0),
+                                            BorderRadius.circular(15.0),
                                         child: Image.file(
                                           File(_selectedImages[index].path),
                                           width: 120,
@@ -1157,11 +1195,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                         onTap: _isUploading || _isCompressing
                                             ? null
                                             : () {
-                                          setState(() {
-                                            _selectedImages
-                                                .removeAt(index);
-                                          });
-                                        },
+                                                setState(() {
+                                                  _selectedImages
+                                                      .removeAt(index);
+                                                });
+                                              },
                                         child: Container(
                                           decoration: BoxDecoration(
                                             color: Colors.black54,
@@ -1211,10 +1249,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                       width: 120,
                                       height: 120,
                                       margin:
-                                      const EdgeInsets.only(right: 12.0),
+                                          const EdgeInsets.only(right: 12.0),
                                       child: ClipRRect(
                                         borderRadius:
-                                        BorderRadius.circular(15.0),
+                                            BorderRadius.circular(15.0),
                                         child: Stack(
                                           fit: StackFit.expand,
                                           children: [
@@ -1226,7 +1264,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                                     ConnectionState.waiting) {
                                                   return const Center(
                                                       child:
-                                                      CircularProgressIndicator());
+                                                          CircularProgressIndicator());
                                                 }
                                                 if (snapshot.hasError ||
                                                     !snapshot.hasData) {
@@ -1262,13 +1300,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                                           width: 24,
                                                           height: 24,
                                                           child:
-                                                          CircularProgressIndicator(
+                                                              CircularProgressIndicator(
                                                             strokeWidth: 2,
                                                             valueColor:
-                                                            AlwaysStoppedAnimation<
-                                                                Color>(
-                                                                Colors
-                                                                    .white),
+                                                                AlwaysStoppedAnimation<
+                                                                        Color>(
+                                                                    Colors
+                                                                        .white),
                                                           ),
                                                         ),
                                                       ),
@@ -1288,10 +1326,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                         onTap: _isUploading || _isCompressing
                                             ? null
                                             : () {
-                                          setState(() {
-                                            _videoItems.removeAt(index);
-                                          });
-                                        },
+                                                setState(() {
+                                                  _videoItems.removeAt(index);
+                                                });
+                                              },
                                         child: Container(
                                           decoration: BoxDecoration(
                                             color: Colors.black54,
@@ -1546,12 +1584,3 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 }
-
-
-
-
-
-
-
-
-

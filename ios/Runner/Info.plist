@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-<!-- Google Maps API Key -->
-        <key>GMSApiKey</key>
-        <string>AIzaSyCbVkm49HQB7DLEDai7wbujMrjimuhNwhU</string>
-
+	<key> NSPhotoLibraryUsageDescription</key>
+	<string>App app want's to access Camera</string>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -24,9 +24,34 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-7789770188-ios-7d262b9ba42b93f511d969</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GMSApiKey</key>
+	<string>AIzaSyCbVkm49HQB7DLEDai7wbujMrjimuhNwhU</string>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>App app want's to access Camera</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>App app want's to access your location to get address.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>App app want's to access your location to get address.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string> App want's to access your location to get address.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>App app want's to access Camera</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -45,29 +70,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-
-	 <!-- Camera permission description keys -->
-        <key> NSPhotoLibraryUsageDescription</key>
-        <string>App app want's to access Camera</string>
-        <key>NSCameraUsageDescription</key>
-        <string>App app want's to access Camera</string>
-
-        <!-- Location permission description keys -->
-
-      <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-       	<string>App app want's to access your location to get address</string>
-       	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-       	<string>App app want's to access your location to get address.</string>
-       	<key>NSLocationAlwaysUsageDescription</key>
-       	<string>App app want's to access your location to get address.</string>
-       	<key>NSLocationWhenInUseUsageDescription</key>
-       	<string> App want's to access your location to get address.</string>
-
-
-
 </dict>
 </plist>

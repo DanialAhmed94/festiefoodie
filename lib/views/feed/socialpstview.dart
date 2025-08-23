@@ -19,9 +19,7 @@ import '../../services/firestore_user_service.dart';
 import 'createPost.dart';
 import 'inbox_view.dart';
 
-
 class SocialMediaHomeView extends StatefulWidget {
-
   const SocialMediaHomeView({Key? key}) : super(key: key);
 
   @override
@@ -206,7 +204,7 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
               right: 0,
               child: PreferredSize(
                 preferredSize: Size.fromHeight(kToolbarHeight),
-                child:AppBar(
+                child: AppBar(
                   title: const Text(
                     "Feed",
                     style: TextStyle(
@@ -218,24 +216,21 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                   ),
                   backgroundColor: Colors.transparent,
                   elevation: 0,
-                  leadingWidth: 100, // Adjust the width to accommodate both widgets
+                  leadingWidth:
+                      100, // Adjust the width to accommodate both widgets
                   leading: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: ()  {
-
-
-                            Navigator.of(context).pop();
-                          }
-                        ,
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
                       ),
                       // Optional: Add spacing between the back button and avatar
                       const SizedBox(width: 8),
                       GestureDetector(
-
-                        child:  CircleAvatar(
+                        child: CircleAvatar(
                           backgroundImage: AssetImage(AppConstants.foodielogo),
                           radius: 16, // Adjust the size as needed
                         ),
@@ -255,10 +250,10 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                           FadePageRouteBuilder(
                             widget: InboxView(),
                           ),
-                        );                      },
+                        );
+                      },
                     ),
                   ],
-
                 ),
               ),
             ),
@@ -308,18 +303,18 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                 child: _isLoadingPosts
                     ? const CircularProgressIndicator()
                     : ElevatedButton(
-                  onPressed: _fetchPosts,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
-                    ),
-                  ),
-                  child: const Text(
-                    "Load More Posts",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
+                        onPressed: _fetchPosts,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.0),
+                          ),
+                        ),
+                        child: const Text(
+                          "Load More Posts",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
               ),
             );
           } else {
@@ -351,10 +346,10 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
   // Methods below are called by PostItemWidget (for building post UI, etc.)
   // -------------------------------------------------------------------------
   Widget buildPostItemUI(
-      BuildContext context,
-      Map<String, dynamic> postData,
-      String postId,
-      ) {
+    BuildContext context,
+    Map<String, dynamic> postData,
+    String postId,
+  ) {
     final String description = postData['description'] ?? '';
 
     // CHANGED: Now reading 'imageUrls', 'videoUrls', 'imageThumbnailUrls', & 'videoThumbnailUrls' from Firestore
@@ -377,8 +372,9 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
     for (int i = 0; i < imageUrls.length; i++) {
       mediaList.add({
         'type': 'image',
-        'thumbnailUrl':
-        imageThumbnailUrls.length > i ? imageThumbnailUrls[i] : imageUrls[i],
+        'thumbnailUrl': imageThumbnailUrls.length > i
+            ? imageThumbnailUrls[i]
+            : imageUrls[i],
         'fullUrl': imageUrls[i],
       });
     }
@@ -386,8 +382,9 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
     for (int i = 0; i < videoUrls.length; i++) {
       mediaList.add({
         'type': 'video',
-        'thumbnailUrl':
-        videoThumbnailUrls.length > i ? videoThumbnailUrls[i] : videoUrls[i],
+        'thumbnailUrl': videoThumbnailUrls.length > i
+            ? videoThumbnailUrls[i]
+            : videoUrls[i],
         'fullUrl': videoUrls[i],
       });
     }
@@ -448,17 +445,16 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                           },
                           child: Padding(
                             padding:
-                            const EdgeInsets.symmetric(horizontal: 8.0),
+                                const EdgeInsets.symmetric(horizontal: 8.0),
                             child: CachedNetworkImage(
                               imageUrl: media['thumbnailUrl']!,
                               fit: BoxFit.contain,
                               width: MediaQuery.of(context).size.width,
-                              height:
-                              MediaQuery.of(context).size.height * 0.3,
+                              height: MediaQuery.of(context).size.height * 0.3,
                               placeholder: (context, url) => const Center(
                                   child: CircularProgressIndicator()),
                               errorWidget: (context, url, error) =>
-                              const Icon(Icons.error),
+                                  const Icon(Icons.error),
                             ),
                           ),
                         );
@@ -477,7 +473,7 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                           },
                           child: Padding(
                             padding:
-                            const EdgeInsets.symmetric(horizontal: 8.0),
+                                const EdgeInsets.symmetric(horizontal: 8.0),
                             child: Stack(
                               children: [
                                 CachedNetworkImage(
@@ -485,11 +481,11 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                                   fit: BoxFit.cover,
                                   width: MediaQuery.of(context).size.width,
                                   height:
-                                  MediaQuery.of(context).size.height * 0.3,
+                                      MediaQuery.of(context).size.height * 0.3,
                                   placeholder: (context, url) => const Center(
                                       child: CircularProgressIndicator()),
                                   errorWidget: (context, url, error) =>
-                                  const Icon(Icons.error),
+                                      const Icon(Icons.error),
                                 ),
                                 const Center(
                                   child: Icon(
@@ -556,18 +552,35 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
             // Like and Comment Row (REPLACED with LikeSectionWidget to see real-time likes)
             Padding(
               padding:
-              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: LikeSectionWidget(
-                postId: postId,
-                bearerToken: bearerToken,
-                parentState: this,
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LikeSectionWidget(
+                      postId: postId,
+                      bearerToken: bearerToken,
+                      parentState: this,
+                    ),
+                  ),
+                  // Report button
+                  InkWell(
+                    onTap: () => _showReportDialog(context, postId),
+                    child: Row(
+                      children: [
+                        Icon(Icons.report, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text('Report'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
             // Comments inside an ExpansionTile with customized divider
             Theme(
-              data: Theme.of(context)
-                  .copyWith(dividerColor: Colors.transparent),
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 title: const Text(
                   'View/Add Comments',
@@ -584,18 +597,309 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
     );
   }
 
+  /// Report post functionality
+  Future<void> _showReportDialog(BuildContext context, String postId) async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          elevation: 8,
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20.0),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  Colors.grey.shade50,
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon and Title
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.report_problem,
+                    size: 48,
+                    color: Colors.red.shade600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  'Report Post',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                    fontFamily: "Ubuntu",
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Description
+                Text(
+                  'Are you sure you want to report this post? This action cannot be undone.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                    height: 1.4,
+                    fontFamily: "Ubuntu",
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Buttons Row
+                Row(
+                  children: [
+                    // Cancel Button
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade200,
+                            foregroundColor: Colors.grey.shade700,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.close, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: "Ubuntu",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Report Button
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.of(context).pop();
+                            await _reportPost(postId);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade600,
+                            foregroundColor: Colors.white,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.report, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Report',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: "Ubuntu",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Handle post reporting
+  Future<void> _reportPost(String postId) async {
+    try {
+      final postRef =
+          FirebaseFirestore.instance.collection('posts').doc(postId);
+
+      // Use a transaction to safely increment report count and check if it should be deleted
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final postDoc = await transaction.get(postRef);
+
+        if (!postDoc.exists) {
+          throw Exception('Post not found');
+        }
+
+        final currentReportCount = postDoc.data()?['reportCount'] ?? 0;
+        final newReportCount = currentReportCount + 1;
+
+        if (newReportCount >= 1) {
+          // Delete the post if report count reaches 1 or more
+          transaction.delete(postRef);
+        } else {
+          // Just increment the report count
+          transaction.update(postRef, {'reportCount': newReportCount});
+        }
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Success!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: "Ubuntu",
+                      ),
+                    ),
+                    Text(
+                      'Post has been reported and removed',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                        fontFamily: "Ubuntu",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: EdgeInsets.all(16),
+          duration: Duration(seconds: 3),
+          elevation: 8,
+        ),
+      );
+
+      // Refresh the posts list to reflect the changes
+      await _refreshPosts();
+    } catch (e) {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.error_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Error!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: "Ubuntu",
+                      ),
+                    ),
+                    Text(
+                      'Failed to report post. Please try again.',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                        fontFamily: "Ubuntu",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: EdgeInsets.all(16),
+          duration: Duration(seconds: 4),
+          elevation: 8,
+        ),
+      );
+    }
+  }
+
   /// Like / Unlike logic (updated to prevent spam-tapping and ensure >= 0)
   Future<void> handleLike(
-      BuildContext context,
-      String postId,
-      List likes,
-      ) async {
+    BuildContext context,
+    String postId,
+    List likes,
+  ) async {
     String? currentUserId = bearerToken;
     if (currentUserId == null) {
       // Optionally, prompt user to log in
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('You must be logged in to like posts.')),
+        const SnackBar(content: Text('You must be logged in to like posts.')),
       );
       return;
     }
@@ -604,8 +908,7 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
     if (_likeInProgressMap[postId] == true) return;
     _likeInProgressMap[postId] = true;
 
-    final postRef =
-    FirebaseFirestore.instance.collection('posts').doc(postId);
+    final postRef = FirebaseFirestore.instance.collection('posts').doc(postId);
 
     // Use a Firestore transaction to handle concurrency and avoid negative counts
     await FirebaseFirestore.instance.runTransaction((transaction) async {
@@ -618,8 +921,7 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
 
       if (currentLikes.contains(currentUserId)) {
         // Unlike
-        final newCount =
-        currentLikesCount > 0 ? currentLikesCount - 1 : 0;
+        final newCount = currentLikesCount > 0 ? currentLikesCount - 1 : 0;
         transaction.update(postRef, {
           'likes': FieldValue.arrayRemove([currentUserId]),
           'likesCount': newCount,
@@ -655,8 +957,6 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
-
-
 }
 
 // -------------------------------------------------------------------
@@ -696,8 +996,7 @@ class CommentSectionWidget extends StatefulWidget {
       : super(key: key);
 
   @override
-  State<CommentSectionWidget> createState() =>
-      _CommentSectionWidgetState();
+  State<CommentSectionWidget> createState() => _CommentSectionWidgetState();
 }
 
 class _CommentSectionWidgetState extends State<CommentSectionWidget> {
@@ -853,8 +1152,8 @@ class _CommentSectionWidgetState extends State<CommentSectionWidget> {
         if (!snapshot.hasData || snapshot.data == null) {
           return const Padding(
             padding: EdgeInsets.all(8.0),
-            child:
-            Center(child: Text('No comments yet. Be the first to comment!')),
+            child: Center(
+                child: Text('No comments yet. Be the first to comment!')),
           );
         }
 
@@ -889,7 +1188,7 @@ class _CommentSectionWidgetState extends State<CommentSectionWidget> {
                       const CircleAvatar(
                         radius: 12,
                         backgroundImage:
-                        AssetImage('assets/resource_images/user.png'),
+                            AssetImage('assets/resource_images/user.png'),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -948,7 +1247,10 @@ class _CommentSectionWidgetState extends State<CommentSectionWidget> {
               borderRadius: BorderRadius.circular(20.0),
             ),
           ),
-          child: const Text("Load More Comments",style: TextStyle(color: Colors.white),),
+          child: const Text(
+            "Load More Comments",
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       );
     }
@@ -973,7 +1275,7 @@ class _CommentSectionWidgetState extends State<CommentSectionWidget> {
                   hintText: 'Add a comment...',
                   border: InputBorder.none,
                   contentPadding:
-                  EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
               ),
             ),
@@ -1049,8 +1351,7 @@ class _LikeSectionWidgetState extends State<LikeSectionWidget> {
         final postData = snapshot.data!.data() as Map<String, dynamic>;
         final firestoreLikesCount = postData['likesCount'] ?? 0;
         final List firestoreLikes = postData['likes'] ?? [];
-        final firestoreIsLiked =
-        firestoreLikes.contains(widget.bearerToken);
+        final firestoreIsLiked = firestoreLikes.contains(widget.bearerToken);
 
         // We’ll display these ephemeral values in the UI,
         // so we don't do setState() *during* the build method.
@@ -1096,7 +1397,7 @@ class _LikeSectionWidgetState extends State<LikeSectionWidget> {
                   if (isLikedForUI) {
                     _isLiked = false;
                     _likesCount =
-                    likesCountForUI > 0 ? (likesCountForUI - 1) : 0;
+                        likesCountForUI > 0 ? (likesCountForUI - 1) : 0;
                   } else {
                     _isLiked = true;
                     _likesCount = likesCountForUI + 1;
@@ -1150,7 +1451,6 @@ class _LikeSectionWidgetState extends State<LikeSectionWidget> {
   }
 }
 
-
 // -------------------------------------------------------------------
 // Modified FullScreenView: Now a StatefulWidget with dynamic aspect ratio
 // -------------------------------------------------------------------
@@ -1166,13 +1466,12 @@ class FullScreenView extends StatefulWidget {
 }
 
 class _FullScreenViewState extends State<FullScreenView> {
-
   late VideoPlayerController _videoController; // Add this declaration
   ChewieController? _chewieController;
   bool _isLoading = true;
 
   double? _aspectRatio;
- // bool _isLoading = true;
+  // bool _isLoading = true;
   @override
   void initState() {
     super.initState();
@@ -1218,7 +1517,8 @@ class _FullScreenViewState extends State<FullScreenView> {
   // }
 
   Future<void> _fetchVideoMetadata() async {
-    VideoPlayerController controller = VideoPlayerController.network(widget.url);
+    VideoPlayerController controller =
+        VideoPlayerController.network(widget.url);
     try {
       await controller.initialize();
       final size = controller.value.size;
@@ -1297,7 +1597,7 @@ class _FullScreenViewState extends State<FullScreenView> {
             imageUrl: widget.url,
             fit: BoxFit.cover,
             placeholder: (context, url) =>
-            const Center(child: CircularProgressIndicator()),
+                const Center(child: CircularProgressIndicator()),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
         ),

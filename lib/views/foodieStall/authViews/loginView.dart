@@ -1,4 +1,5 @@
 import 'package:festiefoodie/annim/transiton.dart';
+import 'package:festiefoodie/views/foodieStall/authViews/forgotPassword_view.dart';
 import 'package:festiefoodie/views/foodieStall/authViews/signupView.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +28,7 @@ class _LoginViewState extends State<LoginView> {
 
   // 1) This will let us show/hide the progress indicator
   bool _isLoading = false;
-  
+
   // Show/hide password state
   bool _obscurePassword = true;
 
@@ -63,7 +64,6 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return AuthenticationBackgroundScaffold(
-
       child: SingleChildScrollView(
         controller: _scrollController,
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -119,7 +119,9 @@ class _LoginViewState extends State<LoginView> {
                       prefixIcon: const Icon(Icons.lock, color: Colors.white),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: Colors.white,
                         ),
                         onPressed: () {
@@ -136,8 +138,27 @@ class _LoginViewState extends State<LoginView> {
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    FadePageRouteBuilder(widget: ForgotPasswordView()),
+                  );
+                },
+                child: Text(
+                  "Forgot Password?",
+                  style: TextStyle(
+                    fontFamily: "UbuntuMedium",
+                    fontSize: 12,
+                    color: Color(0xFFFF6900),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             // Sign In Button
             GestureDetector(
               // 2) Make onTap async, call LogInApi, toggle _isLoading
@@ -152,6 +173,7 @@ class _LoginViewState extends State<LoginView> {
 
                 setState(() => _isLoading = false);
               },
+
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -163,17 +185,18 @@ class _LoginViewState extends State<LoginView> {
                 child: Center(
                   child: _isLoading
                       ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    strokeWidth: 2.5,
-                  )
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2.5,
+                        )
                       : const Text(
-                    "Sign In",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                          "Sign In",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ),
