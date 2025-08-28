@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key> NSPhotoLibraryUsageDescription</key>
-	<string>App app want's to access Camera</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -42,15 +40,15 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>App app want's to access Camera</string>
+	<string>This app requires access to your camera to capture photos for events and food stalls.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>App app want's to access your location to get address.</string>
+	<string>This app requires access to your location to show nearby events and festivals.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>App app want's to access your location to get address.</string>
+	<string>This app requires access to your location to show nearby events and festivals.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string> App want's to access your location to get address.</string>
+	<string>This app requires access to your location to show nearby events and festivals.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>App app want's to access Camera</string>
+	<string>This app requires access to your photo library to upload images for events and food stalls.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

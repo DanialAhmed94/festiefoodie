@@ -31,11 +31,12 @@ Future<BitmapDescriptor> getCustomMarker() async {
   final ui.Picture scaledPicture = recorder.endRecording();
   final image = await scaledPicture.toImage(width, height);
   final ByteData? byteData =
-  await image.toByteData(format: ui.ImageByteFormat.png);
+      await image.toByteData(format: ui.ImageByteFormat.png);
   final Uint8List byteList = byteData!.buffer.asUint8List();
 
   return BitmapDescriptor.fromBytes(byteList);
 }
+
 class GoogleMapView extends StatefulWidget {
   late bool isFromFestival;
 
@@ -59,7 +60,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
   bool _isFetchingAddress = false;
   bool _isInitialLoad = true;
   bool _showLoadingOverlay = true;
-  
+
   // New variables for manual input mode
   bool _isManualMode = false;
   final TextEditingController _latitudeController = TextEditingController();
@@ -72,8 +73,9 @@ class _GoogleMapViewState extends State<GoogleMapView>
     // Register the observer
     WidgetsBinding.instance.addObserver(this);
     _checkAndRequestLocationPermission();
-    _fetchCustomMarker();_loadCustomMarkerIcon();
-    
+    _fetchCustomMarker();
+    _loadCustomMarkerIcon();
+
     // Show loading overlay for exactly 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
@@ -82,7 +84,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
         });
       }
     });
-    
+
     super.initState();
   }
 
@@ -140,6 +142,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
       });
     }
   }
+
   Future<void> _fetchCustomMarker() async {
     try {
       customMarkerIcon = await getCustomMarker();
@@ -147,6 +150,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
       print("Error fetching custom marker icon: $e");
     }
   }
+
   Future<BitmapDescriptor> getCustomMarker() async {
     String svgData = await rootBundle.loadString('assets/svgs/ic_dest.svg');
     int width = 100;
@@ -161,7 +165,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
     final ui.Picture scaledPicture = recorder.endRecording();
     final image = await scaledPicture.toImage(width, height);
     final ByteData? byteData =
-    await image.toByteData(format: ui.ImageByteFormat.png);
+        await image.toByteData(format: ui.ImageByteFormat.png);
     final Uint8List byteList = byteData!.buffer.asUint8List();
 
     return BitmapDescriptor.fromBytes(byteList);
@@ -221,13 +225,59 @@ class _GoogleMapViewState extends State<GoogleMapView>
 
     setState(() {
       _initialPosition = LatLng(position.latitude, position.longitude);
-      _markers.removeWhere((marker) => marker.markerId == MarkerId('userLocation'));
+      _markers
+          .removeWhere((marker) => marker.markerId == MarkerId('userLocation'));
       _markers.add(
         Marker(
           markerId: MarkerId('userLocation'),
           icon: currentLocationMarker ?? BitmapDescriptor.defaultMarker,
           position: _initialPosition,
           infoWindow: InfoWindow(title: 'Your Location'),
+          onTap: () async {
+            // Get current location again
+            Position tappedPosition = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high,
+            );
+
+            LatLng newLocation =
+                LatLng(tappedPosition.latitude, tappedPosition.longitude);
+
+            setState(() {
+              _markers
+                  .removeWhere((m) => m.markerId == MarkerId('userLocation'));
+              _markers.add(
+                Marker(
+                  markerId: MarkerId('userLocation'),
+                  icon: customMarkerIcon ??
+                      BitmapDescriptor.defaultMarker, // custom icon
+                  position: newLocation,
+                  infoWindow: const InfoWindow(title: 'Selected Location'),
+                ),
+              );
+
+              selectedLatitude = newLocation.latitude.toString();
+              selectedLongitude = newLocation.longitude.toString();
+              _isFetchingAddress = true;
+            });
+
+            await _getAddressAndUpdateUI(
+                newLocation.latitude, newLocation.longitude);
+
+            if (!_isDisposed) {
+              setState(() => _isFetchingAddress = false);
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  "Your current location has been set as a stall location. "
+                  "If you want to change the selected location, please tap anywhere else on the map.",
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          },
         ),
       );
     });
@@ -240,6 +290,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
       _isInitialLoad = false;
     }
   }
+
   // Show dialog if location services are disabled
   void _showLocationServiceDisabledDialog() {
     showDialog(
@@ -355,7 +406,8 @@ class _GoogleMapViewState extends State<GoogleMapView>
         selectedLatitude = null;
         selectedLongitude = null;
         selectedAddress = null;
-        _markers.removeWhere((marker) => marker.markerId == MarkerId('tappedLocation'));
+        _markers.removeWhere(
+            (marker) => marker.markerId == MarkerId('tappedLocation'));
       } else {
         // Clear manual input when switching to map mode
         _latitudeController.clear();
@@ -364,11 +416,83 @@ class _GoogleMapViewState extends State<GoogleMapView>
     });
   }
 
+  Future<void> _onTapCurrentLocation() async {
+    Position tappedPosition = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    LatLng newLocation =
+        LatLng(tappedPosition.latitude, tappedPosition.longitude);
+
+    setState(() {
+      // Change current location marker to custom marker (stall location)
+      _markers.removeWhere((m) => m.markerId == MarkerId('selectedLocation'));
+      _markers.add(
+        Marker(
+          markerId: MarkerId('selectedLocation'),
+          icon: customMarkerIcon ?? BitmapDescriptor.defaultMarker,
+          position: newLocation,
+          infoWindow: const InfoWindow(title: 'Selected Location'),
+        ),
+      );
+
+      selectedLatitude = newLocation.latitude.toString();
+      selectedLongitude = newLocation.longitude.toString();
+      _isFetchingAddress = true;
+    });
+
+    await _getAddressAndUpdateUI(newLocation.latitude, newLocation.longitude);
+
+    if (!_isDisposed) {
+      setState(() => _isFetchingAddress = false);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Your current location has been set as the stall location.\n"
+                "To change it, tap anywhere else on the map.",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFF96222), // Brand orange color
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
+  }
+
   // Validate and process manual coordinates
   void _processManualCoordinates() async {
     final latText = _latitudeController.text.trim();
     final lngText = _longitudeController.text.trim();
-    
+
     if (latText.isEmpty || lngText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -382,7 +506,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
     try {
       final lat = double.parse(latText);
       final lng = double.parse(lngText);
-      
+
       // Validate latitude range (-90 to 90)
       if (lat < -90 || lat > 90) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -393,7 +517,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
         );
         return;
       }
-      
+
       // Validate longitude range (-180 to 180)
       if (lng < -180 || lng > 180) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -413,11 +537,10 @@ class _GoogleMapViewState extends State<GoogleMapView>
 
       // Get address for the manual coordinates
       await _getAddressAndUpdateUI(lat, lng);
-      
+
       if (!_isDisposed) {
         setState(() => _isFetchingAddress = false);
       }
-      
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -448,79 +571,72 @@ class _GoogleMapViewState extends State<GoogleMapView>
                     _mapController = controller;
                     setState(() => _mapLoaded = true);
                   },
-                  onTap: _isManualMode ? null : (LatLng tappedLocation) async {
-                if (!_mapLoaded) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'FestieFoodie is global, hold tight while we load the map.',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                  onTap: _isManualMode
+                      ? null
+                      : (LatLng tappedLocation) async {
+                          if (!_mapLoaded) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    "FestieFoodie is global, hold tight while we load the map."),
+                                backgroundColor: Colors.blue.shade600,
+                                duration: Duration(seconds: 3),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      backgroundColor: Colors.blue.shade600, // Info color
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      margin: const EdgeInsets.all(16),
-                      duration: const Duration(seconds: 3),
-                      action: SnackBarAction(
-                        label: 'OK',
-                        textColor: Colors.white,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            );
+                            return;
+                          }
+
+                          setState(() {
+                            // 1. Reset current location marker back to default
+                            _markers.removeWhere(
+                                (m) => m.markerId == MarkerId('userLocation'));
+                            _markers.add(
+                              Marker(
+                                markerId: MarkerId('userLocation'),
+                                icon: currentLocationMarker ??
+                                    BitmapDescriptor.defaultMarker,
+                                position: _initialPosition,
+                                infoWindow: InfoWindow(title: 'Your Location'),
+                                onTap: () => _onTapCurrentLocation(),
+                              ),
+                            );
+
+                            // 2. Move custom marker to tapped location
+                            _markers.removeWhere((m) =>
+                                m.markerId == MarkerId('selectedLocation'));
+                            _markers.add(
+                              Marker(
+                                markerId: MarkerId('selectedLocation'),
+                                icon: customMarkerIcon ??
+                                    BitmapDescriptor.defaultMarker,
+                                position: tappedLocation,
+                                infoWindow:
+                                    InfoWindow(title: 'Selected Location'),
+                              ),
+                            );
+
+                            selectedLatitude =
+                                tappedLocation.latitude.toString();
+                            selectedLongitude =
+                                tappedLocation.longitude.toString();
+                            _isFetchingAddress = true;
+                          });
+
+                          await _getAddressAndUpdateUI(tappedLocation.latitude,
+                              tappedLocation.longitude);
+
+                          if (!_isDisposed) {
+                            setState(() => _isFetchingAddress = false);
+                          }
                         },
-                      ),
-                    ),
-                  );
-                  return;
-                }
-                setState(() {
-                  _markers.removeWhere((marker) =>
-                      marker.markerId == MarkerId('tappedLocation'));
-                  _markers.add(
-                    Marker(
-                      icon: customMarkerIcon ?? BitmapDescriptor.defaultMarker,
-                      markerId: MarkerId('tappedLocation'),
-                      position: tappedLocation,
-                      infoWindow: InfoWindow(title: 'Selected Location'),
-                    ),
-                  );
-                  selectedLatitude = tappedLocation.latitude.toString();
-                  selectedLongitude = tappedLocation.longitude.toString();
-                  _isFetchingAddress = true;
-                });
-
-                await _getAddressAndUpdateUI(
-                    tappedLocation.latitude, tappedLocation.longitude);
-
-                if (!_isDisposed) {
-                  setState(() => _isFetchingAddress = false);
-                }
-              },
-              myLocationButtonEnabled: true,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
-              compassEnabled: false,
+                  myLocationButtonEnabled: true,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: false,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
           // Loading overlay to prevent blue screen flash
           if (_showLoadingOverlay)
             Positioned.fill(
@@ -554,32 +670,33 @@ class _GoogleMapViewState extends State<GoogleMapView>
                       ),
                       const SizedBox(height: 16),
                       const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
                       ),
                     ],
                   ),
                 ),
+              ),
             ),
-          ),
           Positioned(
             bottom: 20,
             right: 15,
             child: FloatingActionButton(
               backgroundColor: Colors.white,
-              onPressed: _isManualMode ? null : () async {
-                Position position = await Geolocator.getCurrentPosition(
-                  desiredAccuracy: LocationAccuracy.high,
-                );
-                LatLng currentLocation =
-                    LatLng(position.latitude, position.longitude);
-                _mapController.animateCamera(
-                  CameraUpdate.newLatLngZoom(currentLocation, 14.0),
-                );
-              },
-              child: Icon(
-                Icons.my_location, 
-                color: _isManualMode ? Colors.grey : Colors.black
-              ),
+              onPressed: _isManualMode
+                  ? null
+                  : () async {
+                      Position position = await Geolocator.getCurrentPosition(
+                        desiredAccuracy: LocationAccuracy.high,
+                      );
+                      LatLng currentLocation =
+                          LatLng(position.latitude, position.longitude);
+                      _mapController.animateCamera(
+                        CameraUpdate.newLatLngZoom(currentLocation, 14.0),
+                      );
+                    },
+              child: Icon(Icons.my_location,
+                  color: _isManualMode ? Colors.grey : Colors.black),
             ),
           ),
           // Manual Input Fields (only visible in manual mode)
@@ -619,19 +736,23 @@ class _GoogleMapViewState extends State<GoogleMapView>
                           child: TextField(
                             controller: _latitudeController,
                             focusNode: _latitudeFocusNode,
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                                TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Latitude',
                               hintText: 'e.g., 51.5074',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFF96222)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFF96222)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFF96222), width: 2),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFFF96222), width: 2),
                               ),
-                              labelStyle: const TextStyle(color: Color(0xFFF96222)),
+                              labelStyle:
+                                  const TextStyle(color: Color(0xFFF96222)),
                             ),
                           ),
                         ),
@@ -640,19 +761,23 @@ class _GoogleMapViewState extends State<GoogleMapView>
                           child: TextField(
                             controller: _longitudeController,
                             focusNode: _longitudeFocusNode,
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                                TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Longitude',
                               hintText: 'e.g., -0.1278',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFF96222)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFF96222)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFF96222), width: 2),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFFF96222), width: 2),
                               ),
-                              labelStyle: const TextStyle(color: Color(0xFFF96222)),
+                              labelStyle:
+                                  const TextStyle(color: Color(0xFFF96222)),
                             ),
                           ),
                         ),
@@ -713,7 +838,14 @@ class _GoogleMapViewState extends State<GoogleMapView>
                     child: Center(
                       child: _isFetchingAddress
                           ? CircularProgressIndicator(color: Colors.white)
-                          : Text('Save Location'),
+                          : Text(
+                              'Save Location',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -752,14 +884,15 @@ class _GoogleMapViewState extends State<GoogleMapView>
                     child: ElevatedButton(
                       onPressed: _toggleMode,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isManualMode 
-                            ? const Color(0xFFF96222) 
+                        backgroundColor: _isManualMode
+                            ? const Color(0xFFF96222)
                             : Colors.white,
-                        foregroundColor: _isManualMode 
-                            ? Colors.white 
+                        foregroundColor: _isManualMode
+                            ? Colors.white
                             : const Color(0xFFF96222),
                         elevation: 2,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                           side: BorderSide(
