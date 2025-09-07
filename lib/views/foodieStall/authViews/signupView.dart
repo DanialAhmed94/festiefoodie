@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:festiefoodie/constants/appConstants.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../annim/transiton.dart';
 import '../../../apis/authentication/signup.dart';
 import '../../../utilities/authenticationBackground.dart';
@@ -37,7 +38,7 @@ class _SignupViewState extends State<SignupView> {
       TextEditingController(); // Added confirm password controller
   bool _obscurePassword = true; // Password visibility
   bool _obscureConfirmPassword = true; // Confirm password visibility
-
+  bool _agreedToTerms = false;
   // Add these methods for phone verification
   Future<void> _proceedToOtpVerification() async {
     // First check form validation state
@@ -54,7 +55,11 @@ class _SignupViewState extends State<SignupView> {
     final phone = _phoneController.text.trim();
     final username = _usernameController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || phone.isEmpty || username.isEmpty) {
+    if (email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty ||
+        phone.isEmpty ||
+        username.isEmpty) {
       _showMessage('Please fill all required fields', isError: true);
       return;
     }
@@ -111,10 +116,10 @@ class _SignupViewState extends State<SignupView> {
       }
       return;
     }
-    
+
     // Remove all non-digit characters except the + sign
     final cleaned = value.replaceAll(RegExp(r'[^\d+]'), '');
-    
+
     if (cleaned != value) {
       _phoneController.value = TextEditingValue(
         text: cleaned,
@@ -145,7 +150,9 @@ class _SignupViewState extends State<SignupView> {
           ),
         ],
       ),
-      backgroundColor: isError ? Colors.red.shade600 : const Color(0xFFF96222), // Error or brand orange
+      backgroundColor: isError
+          ? Colors.red.shade600
+          : const Color(0xFFF96222), // Error or brand orange
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
@@ -376,11 +383,76 @@ class _SignupViewState extends State<SignupView> {
                 ],
               ),
             ),
-            const SizedBox(height: 30),
+
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Checkbox(
+                    value: _agreedToTerms,
+                    onChanged: (value) {
+                      setState(() {
+                        _agreedToTerms = value ?? false;
+                      });
+                    },
+                  ),
+                  Flexible(
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black,
+                          fontFamily: "Ubuntu",
+                        ),
+                        children: [
+                          const TextSpan(text: "I agree to the "),
+                          TextSpan(
+                              text: "Terms of Use (EULA)",
+                              style: const TextStyle(
+                                decoration: TextDecoration.underline,
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    Colors.black, // ✅ clickable text white too
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () async {
+                                  final Uri url = Uri.parse(
+                                      "https://crapadvisor.semicolonstech.com/privacy.html");
+                                  if (!await launchUrl(
+                                    url,
+                                    mode: LaunchMode.externalApplication,
+                                  )) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              "Could not open Terms of Use link.")),
+                                    );
+                                  }
+                                }),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             // SignUp Button
             GestureDetector(
-              onTap: _proceedToOtpVerification,
+              onTap: () {
+                if (_agreedToTerms) {
+                  _proceedToOtpVerification();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Please agree to the Terms of Use before continuing."),
+                    ),
+                  );
+                }
+              },
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -395,14 +467,18 @@ class _SignupViewState extends State<SignupView> {
                               AlwaysStoppedAnimation<Color>(Colors.white),
                           strokeWidth: 2.5,
                         )
-                      : const Text("Continue",style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),),
+                      : const Text(
+                          "Continue",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ),
+
             const SizedBox(height: 10),
 
             // Already have an account? Sign In

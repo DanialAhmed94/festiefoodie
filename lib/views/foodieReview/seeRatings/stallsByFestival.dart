@@ -10,6 +10,7 @@ import '../../../utilities/reviewsScaffoldBackground.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'menuByStall.dart';
+
 class StallsByFestival extends StatefulWidget {
   const StallsByFestival({required this.festivalId});
   final String festivalId;
@@ -20,7 +21,7 @@ class StallsByFestival extends StatefulWidget {
 
 class _FestivalStallsState extends State<StallsByFestival> {
   late Future<void> _stallFuture;
-  
+
   // Search functionality
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -31,8 +32,9 @@ class _FestivalStallsState extends State<StallsByFestival> {
   void initState() {
     super.initState();
     _stallFuture = Provider.of<StallProvider>(context, listen: false)
-        .fetchStallsByFestival(context, widget.festivalId,isfromReviewSection: true);
-    
+        .fetchStallsByFestival(context, widget.festivalId,
+            isfromReviewSection: true);
+
     // Listen to search controller changes
     _searchController.addListener(_onSearchChanged);
   }
@@ -49,7 +51,7 @@ class _FestivalStallsState extends State<StallsByFestival> {
     setState(() {
       _isSearching = query.isNotEmpty;
     });
-    
+
     if (query.isEmpty) {
       setState(() {
         _filteredStalls = [];
@@ -59,14 +61,13 @@ class _FestivalStallsState extends State<StallsByFestival> {
 
     // Get the current stall provider
     final stallProvider = Provider.of<StallProvider>(context, listen: false);
-    
+
     // Filter stalls based on search query
     final filtered = stallProvider.stallsByFestival.where((stall) {
       final stallName = (stall.stallName ?? '').toLowerCase();
       final festivalName = (stall.festivalName ?? '').toLowerCase();
-      
-      return stallName.contains(query) || 
-             festivalName.contains(query);
+
+      return stallName.contains(query) || festivalName.contains(query);
     }).toList();
 
     setState(() {
@@ -116,7 +117,8 @@ class _FestivalStallsState extends State<StallsByFestival> {
             children: [
               // Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -197,7 +199,8 @@ class _FestivalStallsState extends State<StallsByFestival> {
               // Search Results Header
               if (_isSearching) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
                       Icon(
@@ -230,8 +233,11 @@ class _FestivalStallsState extends State<StallsByFestival> {
                     : _isSearching && _filteredStalls.isEmpty
                         ? _buildNoResultsWidget()
                         : (_isSearching ? _filteredStalls : stalls).isEmpty
-                            ? _buildNoStallsWidget()
-                            : _buildStallsList(_isSearching ? _filteredStalls : stalls, screenWidth, screenHeight),
+                            ? _buildNoRatingStallsWidget()
+                            : _buildStallsList(
+                                _isSearching ? _filteredStalls : stalls,
+                                screenWidth,
+                                screenHeight),
               ),
             ],
           );
@@ -279,20 +285,49 @@ class _FestivalStallsState extends State<StallsByFestival> {
     );
   }
 
-  Widget _buildNoStallsWidget() {
-    return const Center(
-      child: Text(
-        "There is nothing to show",
-        style: TextStyle(
-          fontSize: 18,
-          fontFamily: "inter-semibold",
-          color: Colors.black54,
-        ),
+  Widget _buildNoRatingStallsWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.1), // subtle background
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.star_border, // star icon fits better for rating
+              size: 60,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "No stalls available for rating",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Check back later to rate stalls",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.black54,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStallsList(List<dynamic> stalls, double screenWidth, double screenHeight) {
+  Widget _buildStallsList(
+      List<dynamic> stalls, double screenWidth, double screenHeight) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       child: ListView.builder(
@@ -365,7 +400,10 @@ class _FestivalStallsState extends State<StallsByFestival> {
                           // Navigate to menu
                           Navigator.push(
                             context,
-                            FadePageRouteBuilder(widget: MenuByStall(stallId: stall.id.toString(),)),
+                            FadePageRouteBuilder(
+                                widget: MenuByStall(
+                              stallId: stall.id.toString(),
+                            )),
                           );
                         },
                         child: Row(
@@ -404,7 +442,8 @@ class _FestivalStallsState extends State<StallsByFestival> {
                         strokeWidth: 2,
                       ),
                     ),
-                    errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 50),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.broken_image, size: 50),
                   ),
                 )
               ],
@@ -415,5 +454,3 @@ class _FestivalStallsState extends State<StallsByFestival> {
     );
   }
 }
-
-

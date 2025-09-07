@@ -13,19 +13,19 @@ import '../../views/foodieStall/foofieStallHome.dart';
 // Assuming MenuItem is defined as in your UI code:
 
 Future<void> addStallApi(
-    BuildContext context, {
-      required String festivalId,
-      required String eventId,
-      required String stallName,
-      required String latitude,
-      required String longitude,
-      required String fromDate,
-      required String toDate,
-      required String openingTime,
-      required String closingTime,
-      XFile? image,
-      List<MenuItem>? menuItems,
-    }) async {
+  BuildContext context, {
+  required String festivalId,
+  required String eventId,
+  required String stallName,
+  required String latitude,
+  required String longitude,
+  required String fromDate,
+  required String toDate,
+  required String openingTime,
+  required String closingTime,
+  XFile? image,
+  List<MenuItem>? menuItems,
+}) async {
   // Update the endpoint URL as per your backend
   final url = Uri.parse("${AppConstants.baseUrl}/store_stall");
   final bearerToken = await getToken(); // Fetch the bearer token
@@ -54,37 +54,34 @@ Future<void> addStallApi(
   }
 
   // Include menu items if they have been added
+  // Include menu items if they have been added
   if (menuItems != null && menuItems.isNotEmpty) {
     List<Map<String, dynamic>> menuData = [];
-    
+
     for (var item in menuItems) {
-      // Validate that image is selected for each menu item
-      if (item.selectedImage == null || !item.isImageSelected) {
-        showErrorDialog(context, "All menu items must have images selected", []);
-        return;
+      // Combine currency symbol with price
+      String priceWithCurrency =
+          "${item.currencySymbol}${item.priceController.text}";
+
+      Map<String, dynamic> menuItemData = {
+        "dish_name": item.dishNameController.text,
+        "price": priceWithCurrency,
+      };
+
+      // Add dish image only if provided
+      if (item.selectedImage != null && item.isImageSelected) {
+        try {
+          final bytes = await item.selectedImage!.readAsBytes();
+          menuItemData["dish_image"] = base64Encode(bytes);
+        } catch (error) {
+          print("Error processing menu item image: $error");
+          // Optional: remove error dialog since image is not required
+        }
       }
-      
-                      // Combine currency symbol with price
-                String priceWithCurrency = "${item.currencySymbol}${item.priceController.text}";
-                
-                Map<String, dynamic> menuItemData = {
-                  "dish_name": item.dishNameController.text,
-                  "price": priceWithCurrency,
-                };
-      
-      // Add dish image as base64 (required for all menu items)
-      try {
-        final bytes = await item.selectedImage!.readAsBytes();
-        menuItemData["dish_image"] = base64Encode(bytes);
-      } catch (error) {
-        print("Error processing menu item image: $error");
-        showErrorDialog(context, "Error processing menu item image", []);
-        return;
-      }
-      
+
       menuData.add(menuItemData);
     }
-    
+
     stallData["menu"] = menuData;
   }
 
@@ -92,13 +89,13 @@ Future<void> addStallApi(
     debugPrint("stall data $stallData");
     final response = await http
         .post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $bearerToken',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(stallData),
-    )
+          url,
+          headers: {
+            'Authorization': 'Bearer $bearerToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(stallData),
+        )
         .timeout(const Duration(seconds: 30));
 
     if (response.statusCode == 200) {
@@ -148,9 +145,9 @@ Future<void> addStallApi(
         Navigator.pushAndRemoveUntil(
             context,
             FadePageRouteBuilder(
-              widget:FoodieStallHome(),
+              widget: FoodieStallHome(),
             ),
-                (route) => false);
+            (route) => false);
       } else {
         // Show error dialog if the API indicates failure
         showErrorDialog(context, responseData['message'], responseData['data']);
@@ -160,10 +157,11 @@ Future<void> addStallApi(
       showErrorDialog(context, responseData['message'], responseData['errors']);
     } else if (response.statusCode == 403) {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
-      showExpiredAccountErrorDialog(context, responseData['message'], responseData['errors']);
+      showExpiredAccountErrorDialog(
+          context, responseData['message'], responseData['errors']);
     } else {
-      showErrorDialog(
-          context, "Stall creation failed with status code: ${response.statusCode}", []);
+      showErrorDialog(context,
+          "Stall creation failed with status code: ${response.statusCode}", []);
     }
   } on TimeoutException catch (_) {
     showErrorDialog(context, "Request timed out. Please try again later.", []);
@@ -203,7 +201,7 @@ void showExpiredAccountErrorDialog(
               Column(
                 children: errors
                     .map((error) => Text(error.toString(),
-                    style: TextStyle(color: Colors.red)))
+                        style: TextStyle(color: Colors.red)))
                     .toList(),
               ),
           ],

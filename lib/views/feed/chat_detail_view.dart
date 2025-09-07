@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../services/firestore_chat_service.dart';
 import '../../services/firestore_user_service.dart';
@@ -39,7 +40,7 @@ class _ChatDetailViewState extends State<ChatDetailView> {
   DateTime? _lastSendTime;
   bool _isDeletingMessage = false;
   Map<String, String> _senderNames =
-  {}; // Cache for sender names in group chats
+      {}; // Cache for sender names in group chats
   bool _isGroupChat = false; // Flag to identify group chats
 
   @override
@@ -393,7 +394,7 @@ class _ChatDetailViewState extends State<ChatDetailView> {
             final reversedIndex = messages.length - 1 - index;
             final message = messages[reversedIndex];
             final showDateSeparator =
-            _shouldShowDateSeparator(messages, reversedIndex);
+                _shouldShowDateSeparator(messages, reversedIndex);
 
             return Column(
               children: [
@@ -472,7 +473,7 @@ class _ChatDetailViewState extends State<ChatDetailView> {
         margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
           crossAxisAlignment:
-          isOutgoing ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              isOutgoing ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             // Sender name for group chats (only for incoming messages)
             if (_isGroupChat && !isOutgoing) ...[
@@ -501,7 +502,7 @@ class _ChatDetailViewState extends State<ChatDetailView> {
 
             Row(
               mainAxisAlignment:
-              isOutgoing ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  isOutgoing ? MainAxisAlignment.end : MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (!isOutgoing) ...[
@@ -667,7 +668,7 @@ class _ChatDetailViewState extends State<ChatDetailView> {
                   ),
                   border: InputBorder.none,
                   contentPadding:
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 ),
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
@@ -701,13 +702,13 @@ class _ChatDetailViewState extends State<ChatDetailView> {
             child: IconButton(
               icon: _isSendingMessage
                   ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
                   : Icon(Icons.send, color: Colors.white, size: 20),
               onPressed: _isSendingMessage ? null : _sendMessage,
             ),
@@ -908,12 +909,12 @@ class _ChatDetailViewState extends State<ChatDetailView> {
       {bool deleteForEveryone = false}) {
     final bool isOutgoing = message.senderId == _currentUserId;
     final String title =
-    deleteForEveryone ? 'Delete from Everyone' : 'Delete from Me';
+        deleteForEveryone ? 'Delete from Everyone' : 'Delete from Me';
     final String content = deleteForEveryone
         ? 'Are you sure you want to delete this message from everyone? This action cannot be undone and will remove the message for all participants.'
         : 'Are you sure you want to delete this message? This will only remove it from your view.';
     final String buttonText =
-    deleteForEveryone ? 'Delete from Everyone' : 'Delete from Me';
+        deleteForEveryone ? 'Delete from Everyone' : 'Delete from Me';
 
     showDialog(
       context: context,
@@ -958,7 +959,7 @@ class _ChatDetailViewState extends State<ChatDetailView> {
             onPressed: _isDeletingMessage
                 ? null
                 : () => _deleteMessage(message,
-                deleteForEveryone: deleteForEveryone),
+                    deleteForEveryone: deleteForEveryone),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
               shape: RoundedRectangleBorder(
@@ -966,25 +967,70 @@ class _ChatDetailViewState extends State<ChatDetailView> {
             ),
             child: _isDeletingMessage
                 ? SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            )
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
                 : Text(
-              buttonText,
-              style: TextStyle(
-                fontFamily: "Ubuntu",
-                fontSize: 16,
-                color: Colors.white,
-              ),
+                    buttonText,
+                    style: TextStyle(
+                      fontFamily: "Ubuntu",
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmBlockUser() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Block User"),
+        content: const Text(
+          "Are you sure you want to block this user? You won’t receive any more messages from them.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              "Block",
+              style: TextStyle(color: Colors.red),
             ),
           ),
         ],
       ),
     );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('chats')
+            .doc(widget.chatId)
+            .update({'isBlock': 1});
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User has been blocked.")),
+        );
+
+        // ✅ Go back after blocking
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to block user: $e")),
+        );
+      }
+    }
   }
 
   void _deleteMessage(ChatMessage message,
@@ -1100,6 +1146,19 @@ class _ChatDetailViewState extends State<ChatDetailView> {
               onTap: () {
                 Navigator.pop(context);
                 _confirmDeleteChat();
+              },
+            ),
+
+            // Delete chat option
+            ListTile(
+              leading: Icon(Icons.block, color: Colors.red.shade600),
+              title: const Text(
+                'Block User',
+                style: TextStyle(fontFamily: "Ubuntu", fontSize: 16),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmBlockUser();
               },
             ),
 

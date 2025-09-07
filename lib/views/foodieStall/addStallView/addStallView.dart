@@ -101,10 +101,10 @@ class _AddStallViewState extends State<AddStallView> {
       setState(() {
         _isCompressingStallImage = true;
       });
-      
+
       // Simulate compression time for better UX
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       setState(() {
         _selectedImage = image;
         _isImageSelected = true;
@@ -123,10 +123,10 @@ class _AddStallViewState extends State<AddStallView> {
       setState(() {
         menuItems[index].isCompressing = true;
       });
-      
+
       // Simulate compression time for better UX
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       setState(() {
         menuItems[index].selectedImage = image;
         menuItems[index].isImageSelected = true;
@@ -171,19 +171,20 @@ class _AddStallViewState extends State<AddStallView> {
       return;
     }
     // Ensure at least one valid menu item is added.
-    bool hasValidMenuItem = false;
-    for (var item in menuItems) {
-      if (item.dishNameController.text.trim().isNotEmpty &&
-           item.priceController.text.trim().isNotEmpty &&
-           item.isImageSelected) {
-        hasValidMenuItem = true;
-        break;
-      }
-    }
-    if (!hasValidMenuItem) {
-       showErrorDialog(context, "Please add at least one complete menu item with dish name, price, and image", []);
-      return;
-    }
+    // bool hasValidMenuItem = false;
+    // for (var item in menuItems) {
+    //   if (item.dishNameController.text.trim().isNotEmpty &&
+    //        item.priceController.text.trim().isNotEmpty &&
+    //        item.isImageSelected) {
+    //     hasValidMenuItem = true;
+    //     break;
+    //   }
+    // }
+    // if (!hasValidMenuItem) {
+    //    showErrorDialog(context, "Please add at least one complete menu item with dish name, price, and image", []);
+    //   return;
+    // }
+
     if (_selectedImage == null) {
       setState(() {
         _isImageSelected = false;
@@ -279,7 +280,8 @@ class _AddStallViewState extends State<AddStallView> {
                             },
                             hint: ConstrainedBox(
                               constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.6,
                               ),
                               child: const Text(
                                 "Choose a festival",
@@ -302,60 +304,65 @@ class _AddStallViewState extends State<AddStallView> {
                                 right: 40, // Extra space for dropdown arrow
                                 top: 16,
                                 bottom: 16,
-                            ),
+                              ),
                             ),
                             isExpanded: true,
                             items: festivalProvider.isFetching
                                 ? [
-                              DropdownMenuItem<String>(
-                                value: null,
-                                enabled: false,
-                                child: Row(
-                                  children: const [
-                                    SizedBox(
-                                      height: 16,
-                                      width: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
+                                    DropdownMenuItem<String>(
+                                      value: null,
+                                      enabled: false,
+                                      child: Row(
+                                        children: const [
+                                          SizedBox(
+                                            height: 16,
+                                            width: 16,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text("Loading festivals..."),
+                                        ],
+                                      ),
                                     ),
-                                    SizedBox(width: 8),
-                                    Text("Loading festivals..."),
-                                  ],
-                                ),
-                              ),
-                            ]
+                                  ]
                                 : festivalProvider.festivals.isNotEmpty
-                                ? festivalProvider.festivals.map((festival) {
-                              return DropdownMenuItem<String>(
-                                value: festival.id.toString(),
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth:
-                                    MediaQuery.of(context).size.width * 0.6,
-                                  ),
-                                child: Text(
-                                  festival.nameOrganizer ??
-                                        festival.description,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              );
-                            }).toList()
-                                : [
-                              DropdownMenuItem<String>(
-                                value: null,
-                                enabled: false,
-                                child: const Text("No festivals found"),
-                              ),
-                            ],
+                                    ? festivalProvider.festivals
+                                        .map((festival) {
+                                        return DropdownMenuItem<String>(
+                                          value: festival.id.toString(),
+                                          child: ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxWidth: MediaQuery.of(context)
+                                                      .size
+                                                      .width *
+                                                  0.6,
+                                            ),
+                                            child: Text(
+                                              festival.nameOrganizer ??
+                                                  festival.description,
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList()
+                                    : [
+                                        DropdownMenuItem<String>(
+                                          value: null,
+                                          enabled: false,
+                                          child:
+                                              const Text("No festivals found"),
+                                        ),
+                                      ],
                             onChanged: (newValue) {
                               setState(() {
                                 _selectedFestivalId = newValue;
                                 _selectedEventId = null;
                               });
                               if (newValue != null) {
-                                Provider.of<EventProvider>(context, listen: false)
+                                Provider.of<EventProvider>(context,
+                                        listen: false)
                                     .fetchEvents(context, newValue);
                               }
                             },
@@ -375,7 +382,8 @@ class _AddStallViewState extends State<AddStallView> {
                         builder: (context, eventProvider, child) {
                           // If no festival is selected, show disabled dropdown
                           if (_selectedFestivalId == null) {
-                            return _buildDisabledDropdown("Select festival first");
+                            return _buildDisabledDropdown(
+                                "Select festival first");
                           }
 
                           // If still fetching, show "Loading events..."
@@ -393,7 +401,8 @@ class _AddStallViewState extends State<AddStallView> {
                             value: _selectedEventId,
                             hint: ConstrainedBox(
                               constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.6,
                               ),
                               child: const Text(
                                 "Choose an event",
@@ -416,7 +425,7 @@ class _AddStallViewState extends State<AddStallView> {
                                 right: 40, // Extra space for dropdown arrow
                                 top: 16,
                                 bottom: 16,
-                            ),
+                              ),
                             ),
                             isExpanded: true,
                             items: eventProvider.events.map((event) {
@@ -425,7 +434,7 @@ class _AddStallViewState extends State<AddStallView> {
                                 child: ConstrainedBox(
                                   constraints: BoxConstraints(
                                     maxWidth:
-                                    MediaQuery.of(context).size.width * 0.6,
+                                        MediaQuery.of(context).size.width * 0.6,
                                   ),
                                   child: Text(
                                     event.eventTitle ?? "",
@@ -463,7 +472,8 @@ class _AddStallViewState extends State<AddStallView> {
                           ),
                           prefixIcon: Padding(
                             padding: const EdgeInsets.all(12.0),
-                            child: SvgPicture.asset(AppConstants.stallNamePrefix,
+                            child: SvgPicture.asset(
+                                AppConstants.stallNamePrefix,
                                 color: const Color(0xFFF96222)),
                           ),
                         ),
@@ -495,37 +505,38 @@ class _AddStallViewState extends State<AddStallView> {
                             ],
                           ),
                           child: Center(
-                             child: _isCompressingStallImage
-                                 ? Column(
-                                     mainAxisAlignment: MainAxisAlignment.center,
-                                     children: [
-                                       const CircularProgressIndicator(
-                                         color: Color(0xFFF96222),
-                                         strokeWidth: 3,
-                                       ),
-                                       const SizedBox(height: 12),
-                                       Text(
-                                         "Compressing image...",
-                                         style: TextStyle(
-                                           color: const Color(0xFFF96222),
-                                           fontSize: 14,
-                                           fontWeight: FontWeight.w500,
-                                         ),
-                                       ),
-                                     ],
-                                   )
-                                 : _selectedImage == null
-                                ? SvgPicture.asset(AppConstants.addImageIcon,
-                                color: const Color(0xFFF96222))
-                                : ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.file(
-                                File(_selectedImage!.path),
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                              ),
-                            ),
+                            child: _isCompressingStallImage
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const CircularProgressIndicator(
+                                        color: Color(0xFFF96222),
+                                        strokeWidth: 3,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "Compressing image...",
+                                        style: TextStyle(
+                                          color: const Color(0xFFF96222),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : _selectedImage == null
+                                    ? SvgPicture.asset(
+                                        AppConstants.addImageIcon,
+                                        color: const Color(0xFFF96222))
+                                    : ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: Image.file(
+                                          File(_selectedImage!.path),
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                        ),
+                                      ),
                           ),
                         ),
                       ),
@@ -547,13 +558,14 @@ class _AddStallViewState extends State<AddStallView> {
                                 context,
                                 FadePageRouteBuilder(
                                     widget: GoogleMapView(
-                                      isFromFestival: false,
-                                    )),
+                                  isFromFestival: false,
+                                )),
                               );
                               if (result != null) {
                                 setState(() {
                                   _latitudeController.text = result['latitude'];
-                                  _longitudeController.text = result['longitude'];
+                                  _longitudeController.text =
+                                      result['longitude'];
                                 });
                               }
                             },
@@ -634,375 +646,486 @@ class _AddStallViewState extends State<AddStallView> {
                           ...menuItems.asMap().entries.map((entry) {
                             int index = entry.key;
                             MenuItem item = entry.value;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 20),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.grey.shade200,
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 20),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.grey.shade200,
+                                  width: 1,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                    // Header with item number and remove button
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  // Header with item number and remove button
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF96222)
+                                              .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          "Item ${index + 1}",
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFFF96222),
+                                          ),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      IconButton(
+                                        icon: Container(
+                                          padding: const EdgeInsets.all(4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFF96222).withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(20),
+                                            color: Colors.red.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
-                                          child: Text(
-                                            "Item ${index + 1}",
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFFF96222),
-                                            ),
+                                          child: const Icon(
+                                            Icons.delete_outline,
+                                            color: Colors.red,
+                                            size: 20,
                                           ),
                                         ),
-                                        const Spacer(),
-                                        IconButton(
-                                          icon: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.red.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: const Icon(
-                                              Icons.delete_outline,
-                                              color: Colors.red,
-                                              size: 20,
-                                            ),
-                                          ),
-                                          onPressed: () => removeMenuItem(index),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    
-                                    // Dish Name Field
-                                    const Text(
-                                      "Dish Name",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
+                                        onPressed: () => removeMenuItem(index),
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Dish Name Field
+                                  const Text(
+                                    "Dish Name",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
                                     ),
-                                    const SizedBox(height: 8),
-                                    TextFormField(
-                                      controller: item.dishNameController,
-                                      decoration: InputDecoration(
-                                        hintText: "Enter dish name",
-                                        filled: true,
-                                        fillColor: Colors.grey.shade50,
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: item.dishNameController,
+                                    decoration: InputDecoration(
+                                      hintText: "Enter dish name",
+                                      filled: true,
+                                      fillColor: Colors.grey.shade50,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: BorderSide.none,
                                       ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 12),
                                     ),
-                                    const SizedBox(height: 16),
-                                    
-                                    // Price and Currency Row
-                                    Row(
-                                      children: [
-                                  Expanded(
-                                          flex: 2,
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                "Price",
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.black87,
-                                                ),
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Price and Currency Row
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              "Price",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black87,
                                               ),
-                                              const SizedBox(height: 8),
-                                              TextFormField(
-                                      controller: item.priceController,
-                                                keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                                  hintText: "0.00",
-                                        filled: true,
-                                                  fillColor: Colors.grey.shade50,
-                                        border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                    borderSide: BorderSide.none,
-                                                  ),
-                                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            TextFormField(
+                                              controller: item.priceController,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              decoration: InputDecoration(
+                                                hintText: "0.00",
+                                                filled: true,
+                                                fillColor: Colors.grey.shade50,
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  borderSide: BorderSide.none,
                                                 ),
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 12),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                "Currency",
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.black87,
-                                                ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        flex: 1,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              "Currency",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black87,
                                               ),
-                                              const SizedBox(height: 8),
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey.shade50,
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: DropdownButtonHideUnderline(
-                                                  child: DropdownButton<String>(
-                                                    value: item.selectedCurrency,
-                                                    isExpanded: true,
-                                                    icon: Container(
-                                                      padding: const EdgeInsets.all(4),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFFF96222).withOpacity(0.1),
-                                                        borderRadius: BorderRadius.circular(4),
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.keyboard_arrow_down,
-                                                        color: Color(0xFFF96222),
-                                                        size: 18,
-                                                      ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child:
+                                                  DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  value: item.selectedCurrency,
+                                                  isExpanded: true,
+                                                  icon: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(4),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                              0xFFF96222)
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              4),
                                                     ),
-                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                    selectedItemBuilder: (BuildContext context) {
-                                                      return CurrencyUtility.currencies.map((currency) {
-                                                        return Container(
-                                                          alignment: Alignment.centerLeft,
-                                                          child: Row(
-                                                            mainAxisSize: MainAxisSize.min,
-                                                            children: [
-                                                              Container(
-                                                                padding: const EdgeInsets.all(4),
-                                                                decoration: BoxDecoration(
-                                                                  color: const Color(0xFFF96222).withOpacity(0.15),
-                                                                  borderRadius: BorderRadius.circular(4),
-                                                                ),
-                                                                child: Text(
-                                                                  currency.symbol,
-                                                                  style: const TextStyle(
-                                                                    fontSize: 12,
-                                                                    fontWeight: FontWeight.w600,
-                                                                    color: Color(0xFFF96222),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              const SizedBox(width: 4),
-                                                              Text(
-                                                                currency.code,
-                                                                style: const TextStyle(
-                                                                  fontSize: 10,
-                                                                  color: Colors.grey,
-                                                                  fontWeight: FontWeight.w500,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        );
-                                                      }).toList();
-                                                    },
-                                                    items: CurrencyUtility.currencies.map((currency) {
-                                                      return DropdownMenuItem<String>(
-                                                        value: currency.code,
+                                                    child: const Icon(
+                                                      Icons.keyboard_arrow_down,
+                                                      color: Color(0xFFF96222),
+                                                      size: 18,
+                                                    ),
+                                                  ),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
+                                                  selectedItemBuilder:
+                                                      (BuildContext context) {
+                                                    return CurrencyUtility
+                                                        .currencies
+                                                        .map((currency) {
+                                                      return Container(
+                                                        alignment: Alignment
+                                                            .centerLeft,
                                                         child: Row(
-                                                          mainAxisSize: MainAxisSize.min,
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
                                                           children: [
                                                             Container(
-                                                              padding: const EdgeInsets.all(6),
-                                                              decoration: BoxDecoration(
-                                                                color: const Color(0xFFF96222).withOpacity(0.1),
-                                                                borderRadius: BorderRadius.circular(6),
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .all(4),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color: const Color(
+                                                                        0xFFF96222)
+                                                                    .withOpacity(
+                                                                        0.15),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            4),
                                                               ),
                                                               child: Text(
                                                                 currency.symbol,
-                                                                style: const TextStyle(
-                                                                  fontSize: 14,
-                                                                  fontWeight: FontWeight.w600,
-                                                                  color: Color(0xFFF96222),
+                                                                style:
+                                                                    const TextStyle(
+                                                                  fontSize: 12,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  color: Color(
+                                                                      0xFFF96222),
                                                                 ),
                                                               ),
                                                             ),
-                                                            const SizedBox(width: 8),
-                                                            Expanded(
-                                                              child: Text(
-                                                                currency.code,
-                                                                style: const TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors.grey,
-                                                                  fontWeight: FontWeight.w500,
-                                                                ),
-                                                                overflow: TextOverflow.ellipsis,
+                                                            const SizedBox(
+                                                                width: 4),
+                                                            Text(
+                                                              currency.code,
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 10,
+                                                                color:
+                                                                    Colors.grey,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
                                                               ),
                                                             ),
                                                           ],
                                                         ),
                                                       );
-                                                    }).toList(),
-                                                    onChanged: (newValue) {
-                                                      if (newValue != null) {
-                                                        setState(() {
-                                                          item.selectedCurrency = newValue;
-                                                          item.currencySymbol = CurrencyUtility.getSymbolByCode(newValue);
-                                                        });
-                                                      }
-                                                    },
-                                                  ),
+                                                    }).toList();
+                                                  },
+                                                  items: CurrencyUtility
+                                                      .currencies
+                                                      .map((currency) {
+                                                    return DropdownMenuItem<
+                                                        String>(
+                                                      value: currency.code,
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(6),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: const Color(
+                                                                      0xFFF96222)
+                                                                  .withOpacity(
+                                                                      0.1),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          6),
+                                                            ),
+                                                            child: Text(
+                                                              currency.symbol,
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                color: Color(
+                                                                    0xFFF96222),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          Expanded(
+                                                            child: Text(
+                                                              currency.code,
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 12,
+                                                                color:
+                                                                    Colors.grey,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }).toList(),
+                                                  onChanged: (newValue) {
+                                                    if (newValue != null) {
+                                                      setState(() {
+                                                        item.selectedCurrency =
+                                                            newValue;
+                                                        item.currencySymbol =
+                                                            CurrencyUtility
+                                                                .getSymbolByCode(
+                                                                    newValue);
+                                                      });
+                                                    }
+                                                  },
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    
-                                    // Image Selection
-                                    const Text(
-                                      "Dish Image",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Image Selection
+                                  const Text(
+                                    "Dish Image",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
                                     ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () => _pickMenuItemImage(index),
-                                            child: Container(
-                                              height: 120,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade50,
-                                                borderRadius: BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: item.isImageSelected 
-                                                    ? Colors.green.shade300 
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () =>
+                                              _pickMenuItemImage(index),
+                                          child: Container(
+                                            height: 120,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade50,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: item.isImageSelected
+                                                    ? Colors.green.shade300
                                                     : Colors.grey.shade300,
-                                                  width: 1,
-                                                ),
+                                                width: 1,
                                               ),
-                                                                                             child: Center(
-                                                 child: item.isCompressing
-                                                     ? Column(
-                                                         mainAxisAlignment: MainAxisAlignment.center,
-                                                         children: [
-                                                           const CircularProgressIndicator(
-                                                             color: Color(0xFFF96222),
-                                                             strokeWidth: 2,
-                                                           ),
-                                                           const SizedBox(height: 8),
-                                                           Text(
-                                                             "Compressing...",
-                                                             style: TextStyle(
-                                                               color: const Color(0xFFF96222),
-                                                               fontSize: 12,
-                                                               fontWeight: FontWeight.w500,
-                                                             ),
-                                                           ),
-                                                         ],
-                                                       )
-                                                     : item.isImageSelected
-                                                         ? ClipRRect(
-                                                             borderRadius: BorderRadius.circular(6),
-                                                             child: Image.file(
-                                                               File(item.selectedImage!.path),
-                                                               fit: BoxFit.cover,
-                                                               width: double.infinity,
-                                                               height: double.infinity,
-                                                             ),
-                                                           )
-                                                         : Column(
-                                                             mainAxisAlignment: MainAxisAlignment.center,
-                                                             children: [
-                                                               Container(
-                                                                 padding: const EdgeInsets.all(12),
-                                                                 decoration: BoxDecoration(
-                                                                   color: const Color(0xFFF96222).withOpacity(0.1),
-                                                                   borderRadius: BorderRadius.circular(8),
-                                                                 ),
-                                                                 child: SvgPicture.asset(
-                                                                   AppConstants.addImageIcon,
-                                                                   color: const Color(0xFFF96222),
-                                                                   height: 24,
-                                                                 ),
-                                                               ),
-                                                               const SizedBox(height: 8),
-                                                               const Text(
-                                                                 "Add Image",
-                                                                 style: TextStyle(
-                                                                   fontSize: 12,
-                                                                   color: Color(0xFFF96222),
-                                                                   fontWeight: FontWeight.w500,
-                                                                 ),
-                                                               ),
-                                                             ],
-                                                           ),
-                                               ),
+                                            ),
+                                            child: Center(
+                                              child: item.isCompressing
+                                                  ? Column(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        const CircularProgressIndicator(
+                                                          color:
+                                                              Color(0xFFF96222),
+                                                          strokeWidth: 2,
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 8),
+                                                        Text(
+                                                          "Compressing...",
+                                                          style: TextStyle(
+                                                            color: const Color(
+                                                                0xFFF96222),
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : item.isImageSelected
+                                                      ? ClipRRect(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(6),
+                                                          child: Image.file(
+                                                            File(item
+                                                                .selectedImage!
+                                                                .path),
+                                                            fit: BoxFit.cover,
+                                                            width:
+                                                                double.infinity,
+                                                            height:
+                                                                double.infinity,
+                                                          ),
+                                                        )
+                                                      : Column(
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                            Container(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .all(12),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color: const Color(
+                                                                        0xFFF96222)
+                                                                    .withOpacity(
+                                                                        0.1),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            8),
+                                                              ),
+                                                              child: SvgPicture
+                                                                  .asset(
+                                                                AppConstants
+                                                                    .addImageIcon,
+                                                                color: const Color(
+                                                                    0xFFF96222),
+                                                                height: 24,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height: 8),
+                                                            const Text(
+                                                              "Add Image",
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Color(
+                                                                    0xFFF96222),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 12),
-                                        if (!item.isImageSelected)
-                                          Expanded(
-                                            child: Container(
-                                              padding: const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                color: Colors.red.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: Colors.red.withOpacity(0.3),
-                                                  width: 1,
-                                                ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      if (!item.isImageSelected)
+                                        Expanded(
+                                          child: Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.red.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color:
+                                                    Colors.red.withOpacity(0.3),
+                                                width: 1,
                                               ),
-                                              child: Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.warning_amber_rounded,
-                                                    color: Colors.red.shade600,
-                                                    size: 16,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      "Image required",
-                                                      style: TextStyle(
-                                                        color: Colors.red.shade600,
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w500,
-                                                      ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.warning_amber_rounded,
+                                                  color: Colors.red.shade600,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    "Image required",
+                                                    style: TextStyle(
+                                                      color:
+                                                          Colors.red.shade600,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w500,
                                                     ),
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                      ],
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -1033,21 +1156,21 @@ class _AddStallViewState extends State<AddStallView> {
                               child: Center(
                                 child: _isSubmitting
                                     ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
                                     : const Text(
-                                  "Submit",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                        "Submit",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
@@ -1080,8 +1203,6 @@ class _AddStallViewState extends State<AddStallView> {
       ),
     );
   }
-
-       
 
   Widget buildDateField(
       BuildContext context, String label, TextEditingController controller) {
@@ -1141,8 +1262,7 @@ class _AddStallViewState extends State<AddStallView> {
                     borderRadius: BorderRadius.circular(30.0),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16.0),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -1164,8 +1284,7 @@ class _AddStallViewState extends State<AddStallView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style:
-            const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
         GestureDetector(
           onTap: () async {

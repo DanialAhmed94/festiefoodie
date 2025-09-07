@@ -41,10 +41,8 @@ class FirestoreChatService {
       final chatId = '${sortedUsers[0]}_${sortedUsers[1]}';
 
       // Check if chat already exists
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         // Create new chat
@@ -96,7 +94,8 @@ class FirestoreChatService {
       }
 
       // Generate unique group chat ID
-      final chatId = 'group_${DateTime.now().millisecondsSinceEpoch}_${creatorId}';
+      final chatId =
+          'group_${DateTime.now().millisecondsSinceEpoch}_${creatorId}';
 
       // Initialize unread counts for all participants
       final Map<String, int> unreadCounts = {};
@@ -113,10 +112,7 @@ class FirestoreChatService {
         createdAt: DateTime.now(),
       );
 
-      await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .set({
+      await _firestore.collection(_chatsCollection).doc(chatId).set({
         ...chat.toMap(),
         'groupName': groupName,
         'groupDescription': groupDescription,
@@ -126,7 +122,8 @@ class FirestoreChatService {
         'createdAt': Timestamp.fromDate(DateTime.now()),
       });
 
-      print('✅ New group chat created: $chatId with ${participantIds.length} participants');
+      print(
+          '✅ New group chat created: $chatId with ${participantIds.length} participants');
       return chatId;
     } catch (e) {
       print('❌ Error creating group chat: $e');
@@ -135,7 +132,8 @@ class FirestoreChatService {
   }
 
   // Add participants to group chat
-  static Future<void> addParticipantsToGroup(String chatId, List<String> newParticipantIds) async {
+  static Future<void> addParticipantsToGroup(
+      String chatId, List<String> newParticipantIds) async {
     try {
       // Validate input parameters
       if (newParticipantIds.isEmpty) {
@@ -143,17 +141,16 @@ class FirestoreChatService {
       }
 
       // Get current chat data
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
       }
 
       final chatData = chatDoc.data()!;
-      final currentParticipants = List<String>.from(chatData['participants'] ?? []);
+      final currentParticipants =
+          List<String>.from(chatData['participants'] ?? []);
       final currentUnreadCounts = _parseUnreadCounts(chatData['unreadCounts']);
 
       // Add new participants
@@ -168,15 +165,13 @@ class FirestoreChatService {
       }
 
       // Update chat document
-      await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .update({
+      await _firestore.collection(_chatsCollection).doc(chatId).update({
         'participants': updatedParticipants,
         'unreadCounts': updatedUnreadCounts,
       });
 
-      print('✅ Added ${newParticipantIds.length} participants to group: $chatId');
+      print(
+          '✅ Added ${newParticipantIds.length} participants to group: $chatId');
     } catch (e) {
       print('❌ Error adding participants to group: $e');
       rethrow;
@@ -184,7 +179,8 @@ class FirestoreChatService {
   }
 
   // Remove participants from group chat
-  static Future<void> removeParticipantsFromGroup(String chatId, List<String> participantIdsToRemove) async {
+  static Future<void> removeParticipantsFromGroup(
+      String chatId, List<String> participantIdsToRemove) async {
     try {
       // Validate input parameters
       if (participantIdsToRemove.isEmpty) {
@@ -192,28 +188,31 @@ class FirestoreChatService {
       }
 
       // Get current chat data
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
       }
 
       final chatData = chatDoc.data()!;
-      final currentParticipants = List<String>.from(chatData['participants'] ?? []);
+      final currentParticipants =
+          List<String>.from(chatData['participants'] ?? []);
       final currentUnreadCounts = Map<String, int>.from(
         (chatData['unreadCounts'] as Map<dynamic, dynamic>?)?.map(
               (key, value) => MapEntry(key.toString(), (value as int?) ?? 0),
-        ) ?? {},
+            ) ??
+            {},
       );
       final admins = List<String>.from(chatData['admins'] ?? []);
 
       // Remove participants
-      final updatedParticipants = currentParticipants.where((id) => !participantIdsToRemove.contains(id)).toList();
+      final updatedParticipants = currentParticipants
+          .where((id) => !participantIdsToRemove.contains(id))
+          .toList();
       final updatedUnreadCounts = Map<String, int>.from(currentUnreadCounts);
-      final updatedAdmins = admins.where((id) => !participantIdsToRemove.contains(id)).toList();
+      final updatedAdmins =
+          admins.where((id) => !participantIdsToRemove.contains(id)).toList();
 
       // Remove from unread counts
       for (final participantId in participantIdsToRemove) {
@@ -226,16 +225,14 @@ class FirestoreChatService {
       }
 
       // Update chat document
-      await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .update({
+      await _firestore.collection(_chatsCollection).doc(chatId).update({
         'participants': updatedParticipants,
         'unreadCounts': updatedUnreadCounts,
         'admins': updatedAdmins,
       });
 
-      print('✅ Removed ${participantIdsToRemove.length} participants from group: $chatId');
+      print(
+          '✅ Removed ${participantIdsToRemove.length} participants from group: $chatId');
     } catch (e) {
       print('❌ Error removing participants from group: $e');
       rethrow;
@@ -246,21 +243,21 @@ class FirestoreChatService {
   static Future<void> leaveGroupChat(String chatId, String userId) async {
     try {
       // Get current chat data
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
       }
 
       final chatData = chatDoc.data()!;
-      final currentParticipants = List<String>.from(chatData['participants'] ?? []);
+      final currentParticipants =
+          List<String>.from(chatData['participants'] ?? []);
       final currentUnreadCounts = Map<String, int>.from(
         (chatData['unreadCounts'] as Map<dynamic, dynamic>?)?.map(
               (key, value) => MapEntry(key.toString(), (value as int?) ?? 0),
-        ) ?? {},
+            ) ??
+            {},
       );
       final admins = List<String>.from(chatData['admins'] ?? []);
 
@@ -270,7 +267,8 @@ class FirestoreChatService {
       }
 
       // Remove user from participants, unread counts, and admins
-      final updatedParticipants = currentParticipants.where((id) => id != userId).toList();
+      final updatedParticipants =
+          currentParticipants.where((id) => id != userId).toList();
       final updatedUnreadCounts = Map<String, int>.from(currentUnreadCounts);
       final updatedAdmins = admins.where((id) => id != userId).toList();
 
@@ -282,10 +280,7 @@ class FirestoreChatService {
       }
 
       // Update chat document
-      await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .update({
+      await _firestore.collection(_chatsCollection).doc(chatId).update({
         'participants': updatedParticipants,
         'unreadCounts': updatedUnreadCounts,
         'admins': updatedAdmins,
@@ -302,10 +297,8 @@ class FirestoreChatService {
   static Future<void> deleteGroupChat(String chatId, String adminId) async {
     try {
       // Get current chat data
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
@@ -391,22 +384,18 @@ class FirestoreChatService {
           .set(chatMessage.toMap());
 
       // Update chat document with last message info
-      await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .update({
+      await _firestore.collection(_chatsCollection).doc(chatId).update({
         'lastMessage': message,
         'lastMessageTime': Timestamp.fromDate(timestamp),
         'lastMessageSender': senderId,
         // Increment unread count for other participants
-        'unreadCounts.$senderId': FieldValue.increment(0), // Reset sender's count
+        'unreadCounts.$senderId':
+            FieldValue.increment(0), // Reset sender's count
       });
 
       // Increment unread count for other participants
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (chatDoc.exists) {
         final chatData = chatDoc.data()!;
@@ -414,10 +403,7 @@ class FirestoreChatService {
 
         for (final participantId in participants) {
           if (participantId != senderId) {
-            await _firestore
-                .collection(_chatsCollection)
-                .doc(chatId)
-                .update({
+            await _firestore.collection(_chatsCollection).doc(chatId).update({
               'unreadCounts.$participantId': FieldValue.increment(1),
             });
           }
@@ -428,7 +414,6 @@ class FirestoreChatService {
 
       // Cloud Function will automatically trigger notification
       // when a new message is added to the subcollection
-
     } catch (e) {
       print('❌ Error sending message: $e');
       rethrow;
@@ -459,15 +444,15 @@ class FirestoreChatService {
         }
 
         return true;
-      })
-          .toList();
+      }).toList();
 
       return messages;
     });
   }
 
   // Simple delete message method
-  static Future<void> deleteMessage(String chatId, String messageId, {bool deleteForEveryone = false}) async {
+  static Future<void> deleteMessage(String chatId, String messageId,
+      {bool deleteForEveryone = false}) async {
     try {
       if (deleteForEveryone) {
         await deleteMessageForEveryone(chatId, messageId);
@@ -481,7 +466,8 @@ class FirestoreChatService {
   }
 
   // Simple soft delete
-  static Future<void> deleteMessageForMe(String chatId, String messageId) async {
+  static Future<void> deleteMessageForMe(
+      String chatId, String messageId) async {
     try {
       final currentUserId = await FirestoreUserService.getUserId();
       if (currentUserId == null) {
@@ -527,7 +513,8 @@ class FirestoreChatService {
   }
 
   // Simple hard delete
-  static Future<void> deleteMessageForEveryone(String chatId, String messageId) async {
+  static Future<void> deleteMessageForEveryone(
+      String chatId, String messageId) async {
     try {
       final currentUserId = await FirestoreUserService.getUserId();
       if (currentUserId == null) {
@@ -573,7 +560,8 @@ class FirestoreChatService {
   }
 
   // Update chat's last message field
-  static Future<void> updateChatLastMessage(String chatId, String currentUserId) async {
+  static Future<void> updateChatLastMessage(
+      String chatId, String currentUserId) async {
     try {
       // Get all messages in the chat (not filtered by user)
       final messagesQuery = await _firestore
@@ -589,16 +577,12 @@ class FirestoreChatService {
         // Only filter out hard deleted messages
         if (message.isDeleted) return false;
         return true;
-      })
-          .toList();
+      }).toList();
 
       // Update chat with new last message info (based on all visible messages)
       if (allMessages.isNotEmpty) {
         final lastMessage = allMessages.first;
-        await _firestore
-            .collection(_chatsCollection)
-            .doc(chatId)
-            .update({
+        await _firestore.collection(_chatsCollection).doc(chatId).update({
           'lastMessage': lastMessage.message,
           'lastMessageTime': Timestamp.fromDate(lastMessage.timestamp),
           'lastMessageSender': lastMessage.senderId,
@@ -606,10 +590,7 @@ class FirestoreChatService {
         print('✅ Updated chat last message: ${lastMessage.message}');
       } else {
         // No messages left - clear last message info
-        await _firestore
-            .collection(_chatsCollection)
-            .doc(chatId)
-            .update({
+        await _firestore.collection(_chatsCollection).doc(chatId).update({
           'lastMessage': '',
           'lastMessageTime': null,
           'lastMessageSender': '',
@@ -641,7 +622,8 @@ class FirestoreChatService {
           final chatData = doc.data();
           print('📄 Chat data: $chatData');
 
-          final participants = List<String>.from(chatData['participants'] ?? []);
+          final participants =
+              List<String>.from(chatData['participants'] ?? []);
           final deletedFor = List<String>.from(chatData['deletedFor'] ?? []);
           print('👥 Participants: $participants');
           print('🗑️ Deleted for: $deletedFor');
@@ -666,13 +648,15 @@ class FirestoreChatService {
               // Self-message chat (single participant)
               otherUserId = userId;
               print('💬 Self-message chat detected (single participant)');
-            } else if (participants.length == 2 && participants.every((id) => id == userId)) {
+            } else if (participants.length == 2 &&
+                participants.every((id) => id == userId)) {
               // Self-message chat (duplicate participants)
               otherUserId = userId;
               print('💬 Self-message chat detected (duplicate participants)');
             } else {
               // Get the other user's ID (skip current user)
-              final otherUsers = participants.where((id) => id != userId).toList();
+              final otherUsers =
+                  participants.where((id) => id != userId).toList();
               if (otherUsers.isEmpty) {
                 print('⚠️ No other users found in chat ${doc.id}');
                 continue; // Skip this chat
@@ -686,7 +670,8 @@ class FirestoreChatService {
           print('🔍 Fetching data for: $otherUserId');
           final unreadCounts = <String, int>{};
           if (chatData['unreadCounts'] != null) {
-            final unreadData = chatData['unreadCounts'] as Map<dynamic, dynamic>;
+            final unreadData =
+                chatData['unreadCounts'] as Map<dynamic, dynamic>;
             for (final entry in unreadData.entries) {
               unreadCounts[entry.key.toString()] = (entry.value as int?) ?? 0;
             }
@@ -699,7 +684,8 @@ class FirestoreChatService {
           String lastMessageSender = '';
 
           // Check if the chat's last message is visible to this user
-          final chatLastMessageId = chatData['lastMessageSender'] != null && chatData['lastMessageSender'].isNotEmpty
+          final chatLastMessageId = chatData['lastMessageSender'] != null &&
+                  chatData['lastMessageSender'].isNotEmpty
               ? await _getLastMessageIdForUser(doc.id, userId)
               : null;
 
@@ -712,7 +698,8 @@ class FirestoreChatService {
             lastMessageSender = chatData['lastMessageSender'] ?? '';
           } else {
             // Chat's last message is not visible to this user, find the actual last visible message
-            final lastVisibleMessage = await _getLastVisibleMessageForUser(doc.id, userId);
+            final lastVisibleMessage =
+                await _getLastVisibleMessageForUser(doc.id, userId);
             if (lastVisibleMessage != null) {
               lastMessage = lastVisibleMessage.message;
               lastMessageTime = lastVisibleMessage.timestamp;
@@ -733,7 +720,8 @@ class FirestoreChatService {
             print('✅ Group found: $displayName');
           } else {
             // Direct chat
-            final otherUser = await FirestoreUserService.getUserById(otherUserId);
+            final otherUser =
+                await FirestoreUserService.getUserById(otherUserId);
             if (otherUser != null) {
               displayName = otherUser.userName;
               isOnline = otherUser.isOnline;
@@ -755,6 +743,7 @@ class FirestoreChatService {
             lastMessageSender: lastMessageSender,
             unreadCount: unreadCount,
             isOnline: isOnline,
+            isBlock: chatData['isBlock'] ?? 0, // ✅ pull int directly
           );
 
           chatItems.add(chatItem);
@@ -771,7 +760,8 @@ class FirestoreChatService {
   }
 
   // Helper method to get the last message ID for a user
-  static Future<String?> _getLastMessageIdForUser(String chatId, String userId) async {
+  static Future<String?> _getLastMessageIdForUser(
+      String chatId, String userId) async {
     try {
       final messagesQuery = await _firestore
           .collection(_chatsCollection)
@@ -782,7 +772,8 @@ class FirestoreChatService {
           .get();
 
       if (messagesQuery.docs.isNotEmpty) {
-        final lastMessage = ChatMessage.fromMap(messagesQuery.docs.first.data() as Map<String, dynamic>);
+        final lastMessage = ChatMessage.fromMap(
+            messagesQuery.docs.first.data() as Map<String, dynamic>);
         // Check if this message is visible to the user
         if (!lastMessage.isDeleted && !lastMessage.isDeletedForUser(userId)) {
           return messagesQuery.docs.first.id;
@@ -796,7 +787,8 @@ class FirestoreChatService {
   }
 
   // Helper method to get the last visible message for a user
-  static Future<ChatMessage?> _getLastVisibleMessageForUser(String chatId, String userId) async {
+  static Future<ChatMessage?> _getLastVisibleMessageForUser(
+      String chatId, String userId) async {
     try {
       final messagesQuery = await _firestore
           .collection(_chatsCollection)
@@ -828,10 +820,8 @@ class FirestoreChatService {
       }
 
       // Get the chat to check if it exists
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
@@ -845,10 +835,7 @@ class FirestoreChatService {
       if (!deletedFor.contains(currentUserId)) {
         deletedFor.add(currentUserId);
 
-        await _firestore
-            .collection(_chatsCollection)
-            .doc(chatId)
-            .update({
+        await _firestore.collection(_chatsCollection).doc(chatId).update({
           'deletedFor': deletedFor,
         });
 
@@ -907,10 +894,7 @@ class FirestoreChatService {
   static Future<void> markMessagesAsRead(String chatId, String userId) async {
     try {
       // Reset unread count for this user
-      await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .update({
+      await _firestore.collection(_chatsCollection).doc(chatId).update({
         'unreadCounts.$userId': 0,
       });
 
@@ -951,7 +935,8 @@ class FirestoreChatService {
       for (final doc in snapshot.docs) {
         final unreadCounts = <String, int>{};
         if (doc.data()['unreadCounts'] != null) {
-          final unreadData = doc.data()['unreadCounts'] as Map<dynamic, dynamic>;
+          final unreadData =
+              doc.data()['unreadCounts'] as Map<dynamic, dynamic>;
           for (final entry in unreadData.entries) {
             unreadCounts[entry.key.toString()] = (entry.value as int?) ?? 0;
           }
@@ -965,10 +950,8 @@ class FirestoreChatService {
   // Get chat by ID
   static Future<Chat?> getChatById(String chatId) async {
     try {
-      final docSnapshot = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final docSnapshot =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (docSnapshot.exists) {
         return Chat.fromMap(docSnapshot.data()! as Map<String, dynamic>);
@@ -1013,7 +996,15 @@ class FirestoreChatService {
 
   static String _getAvatarIcon(String userId) {
     final icons = [
-      '🐒', '💀', '🌈', '🐨', '⚔️', '👤', '🐸', '🎩', '🧛',
+      '🐒',
+      '💀',
+      '🌈',
+      '🐨',
+      '⚔️',
+      '👤',
+      '🐸',
+      '🎩',
+      '🧛',
     ];
     final index = userId.hashCode % icons.length;
     return icons[index];
@@ -1021,10 +1012,10 @@ class FirestoreChatService {
 
   // Get messages with pagination
   static Future<List<ChatMessage>> getMessagesWithPagination(
-      String chatId, {
-        int limit = 20,
-        DocumentSnapshot? lastDocument,
-      }) async {
+    String chatId, {
+    int limit = 20,
+    DocumentSnapshot? lastDocument,
+  }) async {
     try {
       Query query = _firestore
           .collection(_chatsCollection)
@@ -1053,10 +1044,8 @@ class FirestoreChatService {
   // Get group chat information
   static Future<Map<String, dynamic>?> getGroupChatInfo(String chatId) async {
     try {
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         return null;
@@ -1105,10 +1094,8 @@ class FirestoreChatService {
   // Add admin to group chat
   static Future<void> addAdminToGroup(String chatId, String userId) async {
     try {
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
@@ -1120,10 +1107,7 @@ class FirestoreChatService {
       if (!admins.contains(userId)) {
         admins.add(userId);
 
-        await _firestore
-            .collection(_chatsCollection)
-            .doc(chatId)
-            .update({
+        await _firestore.collection(_chatsCollection).doc(chatId).update({
           'admins': admins,
         });
 
@@ -1138,10 +1122,8 @@ class FirestoreChatService {
   // Remove admin from group chat
   static Future<void> removeAdminFromGroup(String chatId, String userId) async {
     try {
-      final chatDoc = await _firestore
-          .collection(_chatsCollection)
-          .doc(chatId)
-          .get();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
 
       if (!chatDoc.exists) {
         throw Exception('Chat not found');
@@ -1159,10 +1141,7 @@ class FirestoreChatService {
       if (admins.contains(userId)) {
         admins.remove(userId);
 
-        await _firestore
-            .collection(_chatsCollection)
-            .doc(chatId)
-            .update({
+        await _firestore.collection(_chatsCollection).doc(chatId).update({
           'admins': admins,
         });
 

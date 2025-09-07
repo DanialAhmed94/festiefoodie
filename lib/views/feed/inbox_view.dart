@@ -39,8 +39,6 @@ class _InboxViewState extends State<InboxView> {
     }
   }
 
-
-
   void _addNewChat(ChatListItem newChat) {
     setState(() {
       _chatList.insert(0, newChat);
@@ -128,7 +126,8 @@ class _InboxViewState extends State<InboxView> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CreateChatView(onChatCreated: _addNewChat),
+                    builder: (context) =>
+                        CreateChatView(onChatCreated: _addNewChat),
                   ),
                 );
               },
@@ -172,7 +171,8 @@ class _InboxViewState extends State<InboxView> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CreateGroupView(onGroupCreated: _addNewGroup),
+                    builder: (context) =>
+                        CreateGroupView(onGroupCreated: _addNewGroup),
                   ),
                 );
               },
@@ -206,7 +206,8 @@ class _InboxViewState extends State<InboxView> {
               height: kToolbarHeight + 40,
               child: AppBar(
                 leading: IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 24),
+                  icon: Icon(Icons.arrow_back_ios_new,
+                      color: Colors.black87, size: 24),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
@@ -245,25 +246,34 @@ class _InboxViewState extends State<InboxView> {
                         });
                       },
                       child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                         decoration: BoxDecoration(
-                          color: _selectedTabIndex == 0 ? Colors.blue.shade600 : Colors.transparent,
+                          color: _selectedTabIndex == 0
+                              ? Colors.blue.shade600
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: _selectedTabIndex == 0 ? [
-                            BoxShadow(
-                              color: Colors.blue.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
-                            ),
-                          ] : null,
+                          boxShadow: _selectedTabIndex == 0
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.blue.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Text(
                           "Direct",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: "Ubuntu",
-                            fontWeight: _selectedTabIndex == 0 ? FontWeight.w600 : FontWeight.w500,
-                            color: _selectedTabIndex == 0 ? Colors.white : Colors.grey.shade700,
+                            fontWeight: _selectedTabIndex == 0
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: _selectedTabIndex == 0
+                                ? Colors.white
+                                : Colors.grey.shade700,
                             fontSize: 14,
                           ),
                         ),
@@ -278,25 +288,34 @@ class _InboxViewState extends State<InboxView> {
                         });
                       },
                       child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                         decoration: BoxDecoration(
-                          color: _selectedTabIndex == 1 ? Colors.blue.shade600 : Colors.transparent,
+                          color: _selectedTabIndex == 1
+                              ? Colors.blue.shade600
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: _selectedTabIndex == 1 ? [
-                            BoxShadow(
-                              color: Colors.blue.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
-                            ),
-                          ] : null,
+                          boxShadow: _selectedTabIndex == 1
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.blue.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Text(
                           "Group",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: "Ubuntu",
-                            fontWeight: _selectedTabIndex == 1 ? FontWeight.w600 : FontWeight.w500,
-                            color: _selectedTabIndex == 1 ? Colors.white : Colors.grey.shade700,
+                            fontWeight: _selectedTabIndex == 1
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: _selectedTabIndex == 1
+                                ? Colors.white
+                                : Colors.grey.shade700,
                             fontSize: 14,
                           ),
                         ),
@@ -379,12 +398,15 @@ class _InboxViewState extends State<InboxView> {
 
         final allChats = snapshot.data ?? [];
 
-        // Filter direct chats (not group chats)
-        final directChats = allChats.where((chat) => !chat.otherUserId.startsWith('group_')).toList();
+        final directChats = allChats
+            .where((chat) =>
+                !chat.otherUserId.startsWith('group_') && (chat.isBlock) == 0)
+            .toList();
 
         // Update total unread count for all chats
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final totalUnread = allChats.fold(0, (sum, chat) => sum + chat.unreadCount);
+          final totalUnread =
+              allChats.fold(0, (sum, chat) => sum + chat.unreadCount);
           if (totalUnread != _totalUnreadCount) {
             setState(() {
               _totalUnreadCount = totalUnread;
@@ -465,7 +487,9 @@ class _InboxViewState extends State<InboxView> {
         final allChats = snapshot.data ?? [];
 
         // Filter group chats
-        final groupChats = allChats.where((chat) => chat.otherUserId.startsWith('group_')).toList();
+        final groupChats = allChats
+            .where((chat) => chat.otherUserId.startsWith('group_'))
+            .toList();
 
         if (groupChats.isEmpty) {
           return Center(
@@ -480,7 +504,8 @@ class _InboxViewState extends State<InboxView> {
                     decoration: BoxDecoration(
                       color: Colors.green.shade50,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.green.shade100, width: 2),
+                      border:
+                          Border.all(color: Colors.green.shade100, width: 2),
                     ),
                     child: Icon(
                       Icons.group_outlined,
@@ -604,7 +629,8 @@ class _InboxViewState extends State<InboxView> {
 
               // Mark messages as read AFTER navigation (when user returns)
               if (_currentUserId != null) {
-                await FirestoreChatService.markMessagesAsRead(chat.chatId, _currentUserId!);
+                await FirestoreChatService.markMessagesAsRead(
+                    chat.chatId, _currentUserId!);
               }
             }
           } catch (e) {
@@ -649,12 +675,14 @@ class _InboxViewState extends State<InboxView> {
                   color: _getAvatarColor(chat.otherUserAvatarColor),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isUnread ? Colors.blue.shade200 : Colors.grey.shade200,
+                    color:
+                        isUnread ? Colors.blue.shade200 : Colors.grey.shade200,
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _getAvatarColor(chat.otherUserAvatarColor).withOpacity(0.3),
+                      color: _getAvatarColor(chat.otherUserAvatarColor)
+                          .withOpacity(0.3),
                       blurRadius: 8,
                       offset: Offset(0, 2),
                     ),
@@ -681,7 +709,8 @@ class _InboxViewState extends State<InboxView> {
                             chat.otherUserName,
                             style: TextStyle(
                               fontFamily: "Ubuntu",
-                              fontWeight: isUnread ? FontWeight.w600 : FontWeight.w500,
+                              fontWeight:
+                                  isUnread ? FontWeight.w600 : FontWeight.w500,
                               color: Colors.black87,
                               fontSize: 16,
                             ),
@@ -711,9 +740,12 @@ class _InboxViewState extends State<InboxView> {
                                 : 'No messages yet',
                             style: TextStyle(
                               fontFamily: "Ubuntu",
-                              color: isUnread ? Colors.black87 : Colors.grey.shade600,
+                              color: isUnread
+                                  ? Colors.black87
+                                  : Colors.grey.shade600,
                               fontSize: 14,
-                              fontWeight: isUnread ? FontWeight.w500 : FontWeight.w400,
+                              fontWeight:
+                                  isUnread ? FontWeight.w500 : FontWeight.w400,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -722,7 +754,8 @@ class _InboxViewState extends State<InboxView> {
                         if (isUnread) ...[
                           SizedBox(width: 8),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade500,
                               borderRadius: BorderRadius.circular(12),
@@ -759,7 +792,15 @@ class _InboxViewState extends State<InboxView> {
     } else if (difference.inDays == 1) {
       return 'yesterday';
     } else if (difference.inDays < 7) {
-      final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final days = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday'
+      ];
       return days[timestamp.weekday - 1];
     } else {
       return '${timestamp.month.toString().padLeft(2, '0')}/${timestamp.day.toString().padLeft(2, '0')}/${timestamp.year}';
@@ -770,16 +811,26 @@ class _InboxViewState extends State<InboxView> {
     if (colorString == null) return Colors.grey;
 
     switch (colorString) {
-      case 'Colors.green': return Colors.green;
-      case 'Colors.blue': return Colors.blue;
-      case 'Colors.orange': return Colors.orange;
-      case 'Colors.purple': return Colors.purple;
-      case 'Colors.red': return Colors.red;
-      case 'Colors.teal': return Colors.teal;
-      case 'Colors.pink': return Colors.pink;
-      case 'Colors.indigo': return Colors.indigo;
-      case 'Colors.amber': return Colors.amber;
-      default: return Colors.grey;
+      case 'Colors.green':
+        return Colors.green;
+      case 'Colors.blue':
+        return Colors.blue;
+      case 'Colors.orange':
+        return Colors.orange;
+      case 'Colors.purple':
+        return Colors.purple;
+      case 'Colors.red':
+        return Colors.red;
+      case 'Colors.teal':
+        return Colors.teal;
+      case 'Colors.pink':
+        return Colors.pink;
+      case 'Colors.indigo':
+        return Colors.indigo;
+      case 'Colors.amber':
+        return Colors.amber;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -867,61 +918,65 @@ class _InboxViewState extends State<InboxView> {
 
   Future<bool> _showDeleteConfirmation(ChatListItem chat) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.delete_forever, color: Colors.red.shade600, size: 24),
-            SizedBox(width: 12),
-            Text(
-              'Delete Chat',
-              style: TextStyle(
-                fontFamily: "Ubuntu",
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+          context: context,
+          builder: (context) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.delete_forever,
+                    color: Colors.red.shade600, size: 24),
+                SizedBox(width: 12),
+                Text(
+                  'Delete Chat',
+                  style: TextStyle(
+                    fontFamily: "Ubuntu",
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to delete this chat?',
-          style: TextStyle(
-            fontFamily: "Ubuntu",
-            fontSize: 16,
-            color: Colors.grey.shade700,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
+            content: Text(
+              'Are you sure you want to delete this chat?',
               style: TextStyle(
                 fontFamily: "Ubuntu",
                 fontSize: 16,
-                color: Colors.grey.shade600,
+                color: Colors.grey.shade700,
               ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text(
-              'Delete Chat',
-              style: TextStyle(
-                fontFamily: "Ubuntu",
-                fontSize: 16,
-                color: Colors.white,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: "Ubuntu",
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
               ),
-            ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text(
+                  'Delete Chat',
+                  style: TextStyle(
+                    fontFamily: "Ubuntu",
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   void _deleteChat(ChatListItem chat) async {

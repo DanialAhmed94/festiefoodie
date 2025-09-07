@@ -40,7 +40,9 @@ class ChatUser {
       fcmToken: map['fcmToken'],
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       isOnline: map['isOnline'] ?? false,
-      lastSeen: map['lastSeen'] != null ? (map['lastSeen'] as Timestamp).toDate() : null,
+      lastSeen: map['lastSeen'] != null
+          ? (map['lastSeen'] as Timestamp).toDate()
+          : null,
     );
   }
 }
@@ -57,6 +59,7 @@ class Chat {
   final DateTime createdAt;
   final List<String> deletedFor; // Users who deleted this chat
   final bool isDeleted; // Hard delete flag
+  final int isBlock; // 0 = not blocked, 1 = blocked
 
   Chat({
     required this.chatId,
@@ -69,6 +72,7 @@ class Chat {
     required this.createdAt,
     this.deletedFor = const [],
     this.isDeleted = false,
+    this.isBlock = 0, // ✅ default 0
   });
 
   Map<String, dynamic> toMap() {
@@ -77,12 +81,14 @@ class Chat {
       'participants': participants,
       'chatType': chatType,
       'lastMessage': lastMessage,
-      'lastMessageTime': lastMessageTime != null ? Timestamp.fromDate(lastMessageTime!) : null,
+      'lastMessageTime':
+          lastMessageTime != null ? Timestamp.fromDate(lastMessageTime!) : null,
       'lastMessageSender': lastMessageSender,
       'unreadCounts': unreadCounts,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedFor': deletedFor,
       'isDeleted': isDeleted,
+      'isBlock': isBlock, // ✅ added
     };
   }
 
@@ -92,12 +98,15 @@ class Chat {
       participants: List<String>.from(map['participants'] ?? []),
       chatType: map['chatType'] ?? 'direct',
       lastMessage: map['lastMessage'],
-      lastMessageTime: map['lastMessageTime'] != null ? (map['lastMessageTime'] as Timestamp).toDate() : null,
+      lastMessageTime: map['lastMessageTime'] != null
+          ? (map['lastMessageTime'] as Timestamp).toDate()
+          : null,
       lastMessageSender: map['lastMessageSender'],
       unreadCounts: Map<String, int>.from(map['unreadCounts'] ?? {}),
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       deletedFor: List<String>.from(map['deletedFor'] ?? []),
       isDeleted: map['isDeleted'] ?? false,
+      isBlock: map['isBlock'] ?? 0, // ✅ default 0
     );
   }
 
@@ -106,7 +115,7 @@ class Chat {
     return deletedFor.contains(userId);
   }
 
-  // Helper method to create a copy with updated deletion status
+  // Helper method to create a copy with updated fields
   Chat copyWith({
     String? chatId,
     List<String>? participants,
@@ -118,6 +127,7 @@ class Chat {
     DateTime? createdAt,
     List<String>? deletedFor,
     bool? isDeleted,
+    int? isBlock,
   }) {
     return Chat(
       chatId: chatId ?? this.chatId,
@@ -130,6 +140,7 @@ class Chat {
       createdAt: createdAt ?? this.createdAt,
       deletedFor: deletedFor ?? this.deletedFor,
       isDeleted: isDeleted ?? this.isDeleted,
+      isBlock: isBlock ?? this.isBlock, // ✅ handled in copyWith
     );
   }
 }
@@ -241,6 +252,7 @@ class ChatListItem {
   final String lastMessageSender;
   final int unreadCount;
   final bool isOnline;
+  final int isBlock;
 
   ChatListItem({
     required this.chatId,
@@ -253,6 +265,6 @@ class ChatListItem {
     required this.lastMessageSender,
     required this.unreadCount,
     this.isOnline = false,
+    this.isBlock = 0,
   });
 }
-

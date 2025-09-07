@@ -8,12 +8,14 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import 'package:video_compress/video_compress.dart';
 import '../../constants/appConstants.dart';
@@ -58,6 +60,7 @@ class CreatePostPage extends StatefulWidget {
 class _CreatePostPageState extends State<CreatePostPage> {
   final TextEditingController _descriptionController = TextEditingController();
 
+  bool _agreedToTerms = false;
   // Lists to hold selected media
   List<XFile> _selectedImages = [];
   List<VideoItem> _videoItems = []; // Unified list for videos and thumbnails
@@ -963,6 +966,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 fit: BoxFit.cover,
               ),
             ),
+
             Positioned(
               top: 40,
               left: 0,
@@ -1108,14 +1112,84 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Checkbox(
+                            value: _agreedToTerms,
+                            onChanged: (value) {
+                              setState(() {
+                                _agreedToTerms = value ?? false;
+                              });
+                            },
+                          ),
+                          Flexible(
+                            child: RichText(
+                              textAlign: TextAlign.center,
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black,
+                                  fontFamily: "Ubuntu",
+                                ),
+                                children: [
+                                  const TextSpan(text: "I agree to the "),
+                                  TextSpan(
+                                      text: "Terms of Use (EULA)",
+                                      style: const TextStyle(
+                                        decoration: TextDecoration.underline,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors
+                                            .black, // ✅ clickable text white too
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () async {
+                                          final Uri url = Uri.parse(
+                                              "https://crapadvisor.semicolonstech.com/privacy.html");
+                                          if (!await launchUrl(
+                                            url,
+                                            mode:
+                                                LaunchMode.externalApplication,
+                                          )) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      "Could not open Terms of Use link.")),
+                                            );
+                                          }
+                                        }),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Upload Post Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed:
-                            _isUploading || _isCompressing || !_isConnected
-                                ? null
-                                : () => _uploadPost(),
+                        onPressed: _isUploading ||
+                                _isCompressing ||
+                                !_isConnected
+                            ? null
+                            : () {
+                                if (!_agreedToTerms) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          "You must agree to the Terms of Use (EULA) before uploading."),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                _uploadPost();
+                              },
                         child: _isUploading || _isCompressing
                             ? Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

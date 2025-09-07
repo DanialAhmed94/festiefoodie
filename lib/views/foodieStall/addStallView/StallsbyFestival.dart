@@ -34,7 +34,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
           context, widget.festivalId,
           isfromReviewSection: false);
     });
-    
+
     // Listen to search controller changes
     _searchController.addListener(_onSearchChanged);
   }
@@ -51,7 +51,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
     setState(() {
       _isSearching = query.isNotEmpty;
     });
-    
+
     if (query.isEmpty) {
       setState(() {
         _filteredStalls = [];
@@ -61,14 +61,13 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
 
     // Get the current stall provider
     final stallProvider = Provider.of<StallProvider>(context, listen: false);
-    
+
     // Filter stalls based on search query
     final filtered = stallProvider.stallsByFestival.where((stall) {
       final stallName = (stall.stallName ?? '').toLowerCase();
       final festivalName = (stall.festivalName ?? '').toLowerCase();
-      
-      return stallName.contains(query) || 
-             festivalName.contains(query);
+
+      return stallName.contains(query) || festivalName.contains(query);
     }).toList();
 
     setState(() {
@@ -109,10 +108,11 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                   icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
                 ),
               ),
-              
+
               // Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -193,7 +193,8 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
               // Search Results Header
               if (_isSearching) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
                       Icon(
@@ -227,13 +228,15 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
   }
 
   Widget _buildContent(StallProvider stallProvider) {
+    print("stallProvider ${stallProvider.errorMessage}");
     if (stallProvider.isFetching && stallProvider.stallsByFestival.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
         ),
       );
-    } else if (stallProvider.errorMessage != null && stallProvider.stallsByFestival.isEmpty) {
+    } else if (stallProvider.errorMessage != null &&
+        stallProvider.stallsByFestival.isEmpty) {
       return Center(
         child: Text(
           stallProvider.errorMessage!,
@@ -243,10 +246,12 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
       );
     } else if (_isSearching && _filteredStalls.isEmpty) {
       return _buildNoResultsWidget();
-    } else if ((_isSearching ? _filteredStalls : stallProvider.stallsByFestival).isEmpty) {
+    } else if ((_isSearching ? _filteredStalls : stallProvider.stallsByFestival)
+        .isEmpty) {
       return _buildNoStallsWidget();
     } else {
-      return _buildStallsList(_isSearching ? _filteredStalls : stallProvider.stallsByFestival);
+      return _buildStallsList(
+          _isSearching ? _filteredStalls : stallProvider.stallsByFestival);
     }
   }
 
@@ -264,7 +269,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
             child: Icon(
               Icons.search_off,
               size: 60,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 20),
@@ -273,7 +278,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 8),
@@ -281,7 +286,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
             "Try searching with different keywords",
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.black,
             ),
           ),
         ],
@@ -303,7 +308,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
             child: Icon(
               Icons.store,
               size: 60,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 20),
@@ -312,7 +317,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 8),
@@ -320,7 +325,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
             "Check back later for new stalls",
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.black,
             ),
           ),
         ],
@@ -338,11 +343,8 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
         final stall = stalls[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: _buildStallCard(
-              context,
-              MediaQuery.of(context).size.width * 0.95,
-              stall.stallName,
-              stall),
+          child: _buildStallCard(context,
+              MediaQuery.of(context).size.width * 0.95, stall.stallName, stall),
         );
       },
     );
@@ -398,7 +400,10 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                                 endDate: stall.toDate,
                                 startDate: stall.fromDate,
                                 longitude: stall.longitude,
-                                latitude: stall.latitude,imageUrl: stall.image,openingTime: stall.openingTime,stallName: stall.stallName,
+                                latitude: stall.latitude,
+                                imageUrl: stall.image,
+                                openingTime: stall.openingTime,
+                                stallName: stall.stallName,
                               )));
                           // ScaffoldMessenger.of(context).showSnackBar(
                           //   SnackBar(
