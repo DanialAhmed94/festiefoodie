@@ -1,4 +1,7 @@
 class AppConstants {
+  /// Stored on Firestore `users/{id}` as `registeredFromApp` at signup — not sent to REST APIs.
+  static const String firebaseRegistrationAppId = 'festivalfoodie';
+
   static String baseUrl = "https://stagingcrapadvisor.semicolonstech.com/api";
   static String festivalImageUrl =
       "https://stagingcrapadvisor.semicolonstech.com/asset/festivals/";

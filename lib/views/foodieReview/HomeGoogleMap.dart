@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../apis/festivalCollection/getFestivalCollection.dart';
 import '../../models/festivalModel.dart';
 import '../../providers/festivalProvider.dart';
 import '../../utilities/getUserLocation.dart';
@@ -11,7 +12,14 @@ import 'widgets/modalBottomSheet.dart';
 import 'package:provider/provider.dart';
 
 class GoogleMapWidget extends StatefulWidget {
-  const GoogleMapWidget({Key? key}) : super(key: key);
+  const GoogleMapWidget({
+    Key? key,
+    /// Pushes search + Nearest below overlays drawn on top of this widget
+    /// (e.g. the “Your Location” strip in [FoodieReviewHomeMap]).
+    this.contentTopInset = 0,
+  }) : super(key: key);
+
+  final double contentTopInset;
 
   @override
   State<GoogleMapWidget> createState() => _GoogleMapWidgetState();
@@ -34,17 +42,23 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
   LatLng? userLocation;
   bool _showLoadingOverlay = true;
   
-  // Search functionality
+  // Search — server API (`/getfestival?page=&search=`), same pattern as festival-toilet map
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  Timer? _searchDebounce;
   bool _isSearching = false;
-  List<FestivalResource> _filteredFestivals = [];
-  OverlayEntry? _searchOverlay;
+  bool _showSearchResults = false;
+  bool _isSearchingApi = false;
+  String? _searchErrorApi;
+  List<FestivalResource> _searchResultFestivals = [];
 
   @override
   void initState() {
     super.initState();
-    _setupMap();
+    // Defer _setupMap to after the first frame so fetchFestivals() never calls notifyListeners() during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _setupMap();
+    });
     _fetchCustomMarker();
 
     // Show loading overlay for exactly 3 seconds
@@ -55,16 +69,16 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
         });
       }
     });
-    
-    // Listen to search controller changes
+
     _searchController.addListener(_onSearchChanged);
+    _searchFocusNode.addListener(_onSearchFocusChanged);
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _searchOverlay?.remove();
     super.dispose();
   }
   Future<void> _setupMap() async {
@@ -108,133 +122,102 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     return Geolocator.distanceBetween(
         start.latitude, start.longitude, end.latitude, end.longitude);
   }
+  void _onSearchFocusChanged() {
+    if (!_searchFocusNode.hasFocus) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted && !_searchFocusNode.hasFocus) {
+          setState(() => _showSearchResults = false);
+        }
+      });
+    } else if (_searchController.text.isNotEmpty) {
+      setState(() => _showSearchResults = true);
+    }
+  }
+
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase().trim();
+    final query = _searchController.text.trim();
+    _searchDebounce?.cancel();
+
     setState(() {
       _isSearching = query.isNotEmpty;
     });
-    
+
     if (query.isEmpty) {
       setState(() {
-        _filteredFestivals = [];
+        _searchResultFestivals = [];
+        _searchErrorApi = null;
+        _showSearchResults = false;
+        _isSearchingApi = false;
       });
-      _hideSearchOverlay();
       return;
     }
 
-    // Get the current festival provider
-    final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
-    
-    // Filter festivals based on search query
-    final filtered = festivalProvider.festivals.where((festival) {
-      final nameOrganizer = (festival.nameOrganizer ?? '').toLowerCase();
-      final description = (festival.description ?? '').toLowerCase();
-      final descriptionOrganizer = (festival.descriptionOrganizer ?? '').toLowerCase();
-      
-      return nameOrganizer.contains(query) || 
-             description.contains(query) || 
-             descriptionOrganizer.contains(query);
-    }).toList();
-
-    setState(() {
-      _filteredFestivals = filtered;
+    setState(() => _showSearchResults = true);
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _performSearchApi(query);
     });
-    
-    _showSearchOverlay();
+  }
+
+  Future<void> _performSearchApi(String query) async {
+    if (!mounted) return;
+    setState(() {
+      _isSearchingApi = true;
+      _searchErrorApi = null;
+    });
+    try {
+      final response = await fetchFestivalsWithQuery(page: 1, search: query);
+      if (!mounted) return;
+      setState(() {
+        _searchResultFestivals = response.data;
+        _isSearchingApi = false;
+        _searchErrorApi = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searchResultFestivals = [];
+        _isSearchingApi = false;
+        _searchErrorApi = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _dismissSearchUi() {
+    FocusScope.of(context).unfocus();
+    _searchController.clear();
+    setState(() {
+      _isSearching = false;
+      _showSearchResults = false;
+      _searchResultFestivals = [];
+      _searchErrorApi = null;
+      _isSearchingApi = false;
+    });
   }
 
   void _clearSearch() {
-    _searchController.clear();
     _searchFocusNode.unfocus();
-    setState(() {
-      _isSearching = false;
-      _filteredFestivals = [];
-    });
-    _hideSearchOverlay();
+    _dismissSearchUi();
   }
 
-  void _showSearchOverlay() {
-    _hideSearchOverlay(); // Remove existing overlay first
-    
-    if (_filteredFestivals.isEmpty) return;
-    
-    _searchOverlay = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 140, // Below search bar
-        left: 16,
-        right: 16,
-        child: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.4,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              itemCount: _filteredFestivals.length,
-              itemBuilder: (context, index) {
-                final festival = _filteredFestivals[index];
-                final title = festival.nameOrganizer ?? festival.description;
-                
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF96222).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.festival,
-                      color: const Color(0xFFF96222),
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    festival.descriptionOrganizer ?? '',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () => _navigateToFestival(festival),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    
-    Overlay.of(context).insert(_searchOverlay!);
+  String _festivalDisplayName(FestivalResource festival) {
+    final name = festival.nameOrganizer?.trim();
+    if (name != null && name.isNotEmpty && name.toLowerCase() != 'n/a') {
+      return name;
+    }
+    final desc = festival.description.trim();
+    if (desc.isNotEmpty && desc.toLowerCase() != 'n/a') {
+      return desc;
+    }
+    return 'Festival';
   }
 
-  void _hideSearchOverlay() {
-    _searchOverlay?.remove();
-    _searchOverlay = null;
+  void _onSearchSubmitted(String value) {
+    if (_searchResultFestivals.isNotEmpty) {
+      _navigateToFestival(_searchResultFestivals.first);
+    } else {
+      _dismissSearchUi();
+    }
   }
 
   void _navigateToFestival(FestivalResource festival) {
@@ -242,14 +225,27 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
       final latitude = double.parse(festival.latitude);
       final longitude = double.parse(festival.longitude);
       final festivalLatLng = LatLng(latitude, longitude);
-      
-      // Navigate to festival with same zoom level as nearest festival (13)
+
+      _clearSearch();
+
       _controller.animateCamera(
         CameraUpdate.newLatLngZoom(festivalLatLng, 13),
       );
-      
-      // Clear search
-      _clearSearch();
+
+      setState(() {
+        _markers.removeWhere((m) => m.markerId.value == 'selectedFestival');
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('selectedFestival'),
+            position: festivalLatLng,
+            infoWindow: InfoWindow(title: _festivalDisplayName(festival)),
+            icon: _customMarkerIcon ?? BitmapDescriptor.defaultMarker,
+            onTap: () => showMarkerInfo(context, festival),
+          ),
+        );
+      });
+
+      showMarkerInfo(context, festival);
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -324,6 +320,31 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     return nearestFestival;
   }
 
+  Future<void> _onFindNearestFestival() async {
+    _dismissSearchUi();
+    final nearestFestival = _findNearestFestival();
+    if (nearestFestival == null) return;
+    final festivalLatLng = LatLng(
+      double.parse(nearestFestival.latitude),
+      double.parse(nearestFestival.longitude),
+    );
+    await _controller.animateCamera(
+      CameraUpdate.newLatLngZoom(festivalLatLng, 13),
+    );
+    if (!mounted) return;
+    setState(() {
+      _markers.add(
+        Marker(
+          icon: _customMarkerIcon ?? BitmapDescriptor.defaultMarker,
+          markerId: const MarkerId('nearestFestival'),
+          position: festivalLatLng,
+          infoWindow: InfoWindow(
+            title: nearestFestival.nameOrganizer ?? nearestFestival.description,
+          ),
+        ),
+      );
+    });
+  }
 
   Future<void> _fetchCustomMarker() async {
     try {
@@ -333,14 +354,178 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     }
   }
 
+  /// Fixed height so [Column] + [Expanded] [ListView] get bounded constraints.
+  Widget _buildSearchResultsPanel(double panelHeight) {
+    return SizedBox(
+      height: panelHeight,
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFF96222).withOpacity(0.2),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _isSearchingApi
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Color(0xFFF96222),
+                        ),
+                      ),
+                    ),
+                  )
+                : _searchResultFestivals.isNotEmpty
+                    ? Column(
+                        mainAxisSize: MainAxisSize.max,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.search,
+                                  size: 16,
+                                  color: Color(0xFFF96222),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Search results (${_searchResultFestivals.length})',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1),
+                          Expanded(
+                            child: ListView.builder(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              itemCount: _searchResultFestivals.length,
+                              itemBuilder: (context, index) {
+                                final festival = _searchResultFestivals[index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF96222)
+                                          .withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.festival,
+                                      color: Color(0xFFF96222),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    _festivalDisplayName(festival),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    festival.descriptionOrganizer ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    FocusScope.of(context).unfocus();
+                                    _navigateToFestival(festival);
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      )
+                    : SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_searchErrorApi != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    _searchErrorApi!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              Icon(
+                                Icons.search_off,
+                                size: 36,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No festivals found',
+                                style: TextStyle(
+                                  color: Colors.grey[800],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Try different keywords',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final searchPanelHeight = MediaQuery.of(context).size.height * 0.35;
     return Stack(
       children: [
         GoogleMap(
           onMapCreated: (GoogleMapController controller) {
             _controller = controller;
           },
+          onTap: (_) => _dismissSearchUi(),
           initialCameraPosition: CameraPosition(
             target: LatLng(0, 0),
             // Initial value doesn't matter since we update it later
@@ -390,138 +575,156 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
               ),
             ),
           ),
-        // Search Bar
+        // Search + Nearest on one row; results panel below (no overlap)
         Positioned(
-          top: MediaQuery.of(context).size.height * 0.11,
-          left: 16,
-          right: 16,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8 + widget.contentTopInset,
+                16,
+                0,
               ),
-              decoration: InputDecoration(
-                hintText: "Search festivals...",
-                hintStyle: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w400,
-                ),
-                prefixIcon: Container(
-                  margin: const EdgeInsets.all(12),
-                  child: Icon(
-                    Icons.search,
-                    color: const Color(0xFFF96222),
-                    size: 24,
-                  ),
-                ),
-                suffixIcon: _isSearching
-                    ? Container(
-                        margin: const EdgeInsets.all(12),
-                        child: GestureDetector(
-                          onTap: _clearSearch,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 52,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
                           child: Container(
-                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            child: Icon(
-                              Icons.close,
-                              color: Colors.grey[600],
-                              size: 18,
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocusNode,
+                              textInputAction: TextInputAction.search,
+                              onSubmitted: _onSearchSubmitted,
+                              onTap: () {
+                                if (_searchController.text.isNotEmpty) {
+                                  setState(() => _showSearchResults = true);
+                                }
+                              },
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: "Search festivals...",
+                                isDense: true,
+                                hintStyle: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                prefixIcon: Padding(
+                                  padding: const EdgeInsets.only(left: 10),
+                                  child: Icon(
+                                    Icons.search,
+                                    color: const Color(0xFFF96222),
+                                    size: 22,
+                                  ),
+                                ),
+                                prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                ),
+                                suffixIcon: _isSearching
+                                    ? IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed: _clearSearch,
+                                        icon: Icon(
+                                          Icons.close,
+                                          color: Colors.grey[600],
+                                          size: 20,
+                                        ),
+                                      )
+                                    : null,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFF96222),
+                                    width: 2,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFF96222),
-                    width: 2,
+                        const SizedBox(width: 10),
+                        Material(
+                          elevation: 4,
+                          borderRadius: BorderRadius.circular(16),
+                          shadowColor: Colors.black26,
+                          color: const Color(0xFFF96222),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => _onFindNearestFestival(),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.near_me,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Nearest',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
+                  if (_showSearchResults &&
+                      _searchController.text.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildSearchResultsPanel(searchPanelHeight),
+                  ],
+                ],
               ),
             ),
-          ),
-        ),
-        Positioned(
-          top: MediaQuery.of(context).size.height * 0.18,
-          right: 0,
-          left: 0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              GestureDetector(
-                onTap: () async {
-                  FestivalResource? nearestFestival = _findNearestFestival();
-                  if (nearestFestival != null) {
-                    LatLng festivalLatLng = LatLng(
-                        double.parse(nearestFestival.latitude),
-                        double.parse(nearestFestival.longitude));
-                    _controller.animateCamera(
-                        CameraUpdate.newLatLngZoom(festivalLatLng, 13));
-                    setState(() {
-                      _markers.add(
-                        Marker(
-                          icon: _customMarkerIcon ??
-                              BitmapDescriptor.defaultMarker,
-                          markerId: MarkerId("nearestFestival"),
-                          position: festivalLatLng,
-                          infoWindow: InfoWindow(
-                              title: nearestFestival.nameOrganizer ??nearestFestival.description ),
-                        ),
-                      );
-                    });
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8, right: 8),
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.5,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.redAccent,
-                    ),
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Text(
-                          "Find Nearest Festival",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
         Positioned(

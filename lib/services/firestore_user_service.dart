@@ -1,40 +1,79 @@
+import 'dart:async' show unawaited;
+import 'dart:developer' show log;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../constants/appConstants.dart';
 import '../models/chat_models.dart';
 
 class FirestoreUserService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _usersCollection = 'users';
 
-  // Create or update user in Firestore after successful signup
+  /// Writes the chat user doc when a **new** account is created (signup).
+  /// [registeredFromApp] is applied via [set] plus an explicit [update] so it is
+  /// not lost to merge/replace races (e.g. backend writing the same doc).
+  /// Not sent to REST APIs — Firestore only.
   static Future<void> createOrUpdateUser({
     required String userId,
     required String phoneNumber,
     required String userName,
+    String registeredFromApp = AppConstants.firebaseRegistrationAppId,
   }) async {
     try {
-      // Get FCM token from SharedPreferences
+      log(
+        'createOrUpdateUser start userId=$userId phone=$phoneNumber '
+        'registeredFromApp=$registeredFromApp',
+        name: 'FirestoreUser',
+      );
       final prefs = await SharedPreferences.getInstance();
       final fcmToken = prefs.getString('fcm_token');
 
-      final user = ChatUser(
-        userId: userId,
-        phoneNumber: phoneNumber,
-        userName: userName,
-        fcmToken: fcmToken,
-        createdAt: DateTime.now(),
-        isOnline: true,
-        lastSeen: DateTime.now(),
+      final now = DateTime.now();
+      final ts = Timestamp.fromDate(now);
+
+      final data = <String, dynamic>{
+        'userId': userId,
+        'phoneNumber': phoneNumber,
+        'userName': userName,
+        'createdAt': ts,
+        'isOnline': true,
+        'lastSeen': ts,
+        'registeredFromApp': registeredFromApp,
+      };
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        data['fcmToken'] = fcmToken;
+      }
+
+      final docRef = _firestore.collection(_usersCollection).doc(userId);
+
+      await docRef.set(data, SetOptions(merge: true));
+      await docRef.update({'registeredFromApp': registeredFromApp});
+
+      unawaited(
+        Future.delayed(const Duration(seconds: 2), () async {
+          try {
+            await docRef.update({'registeredFromApp': registeredFromApp});
+          } catch (e) {
+            log(
+              'registeredFromApp delayed patch failed userId=$userId: $e',
+              name: 'FirestoreUser',
+            );
+          }
+        }),
       );
 
-      await _firestore
-          .collection(_usersCollection)
-          .doc(userId)
-          .set(user.toMap(), SetOptions(merge: true));
-
-      print('✅ User created/updated in Firestore: $userId');
+      log(
+        'createOrUpdateUser done users/$userId keys=${data.keys.toList()} '
+        'registeredFromApp=$registeredFromApp',
+        name: 'FirestoreUser',
+      );
     } catch (e) {
-      print('❌ Error creating/updating user in Firestore: $e');
+      log(
+        'createOrUpdateUser failed userId=$userId error=$e',
+        name: 'FirestoreUser',
+      );
       rethrow;
     }
   }
@@ -71,22 +110,49 @@ class FirestoreUserService {
     }
   }
 
-  // Search user by phone number
-  static Future<ChatUser?> searchUserByPhone(String phoneNumber) async {
+  /// Search by phone; only matches users with [registeredFromApp] equal to this app.
+  /// Docs without that field are ignored.
+  static Future<ChatUser?> searchUserByPhone(
+    String phoneNumber, {
+    String registeredFromApp = AppConstants.firebaseRegistrationAppId,
+  }) async {
     try {
+      log(
+        'searchUserByPhone query phone=$phoneNumber '
+        'requiredRegisteredFromApp=$registeredFromApp',
+        name: 'ChatSearch',
+      );
       final querySnapshot = await _firestore
           .collection(_usersCollection)
           .where('phoneNumber', isEqualTo: phoneNumber)
-          .limit(1)
           .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final userData = querySnapshot.docs.first.data();
-        return ChatUser.fromMap(userData);
+      log(
+        'searchUserByPhone Firestore returned ${querySnapshot.docs.length} doc(s)',
+        name: 'ChatSearch',
+      );
+      for (final doc in querySnapshot.docs) {
+        final user = ChatUser.fromMap(doc.data());
+        log(
+          'searchUserByPhone doc id=${doc.id} userId=${user.userId} '
+          'registeredFromApp=${user.registeredFromApp ?? "(null)"}',
+          name: 'ChatSearch',
+        );
+        if (user.registeredFromApp == registeredFromApp) {
+          log(
+            'searchUserByPhone MATCH userId=${user.userId}',
+            name: 'ChatSearch',
+          );
+          return user;
+        }
       }
+      log(
+        'searchUserByPhone no doc matches registeredFromApp=$registeredFromApp',
+        name: 'ChatSearch',
+      );
       return null;
     } catch (e) {
-      print('❌ Error searching user by phone: $e');
+      log('searchUserByPhone error: $e', name: 'ChatSearch');
       return null;
     }
   }
@@ -203,8 +269,8 @@ class FirestoreUserService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-        .map((doc) => ChatUser.fromMap(doc.data()))
-        .toList());
+            .map((doc) => ChatUser.fromMap(doc.data()))
+            .toList());
   }
 
   // Get all users as a Future (for one-time fetching)

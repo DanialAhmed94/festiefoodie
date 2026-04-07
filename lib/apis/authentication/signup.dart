@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../constants/appConstants.dart';
 import '../../services/firestore_user_service.dart';
@@ -73,6 +72,7 @@ Future<void> signUp(
             userId: userId,
             phoneNumber: phoneNumber,
             userName: userName,
+            registeredFromApp: AppConstants.firebaseRegistrationAppId,
           );
 
           print('✅ User created in Firestore for chat functionality');

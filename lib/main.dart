@@ -9,6 +9,8 @@ import 'package:festiefoodie/utilities/sharedPrefs.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -89,6 +91,15 @@ Future<String?> getCurrentUserId() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Lets Flutter overlays (search, buttons) draw above the map on Android.
+  if (Platform.isAndroid) {
+    final impl = GoogleMapsFlutterPlatform.instance;
+    if (impl is GoogleMapsFlutterAndroid) {
+      impl.useAndroidViewSurface = true;
+    }
+  }
+
   await Firebase.initializeApp();
 
   // Must be before runApp
@@ -147,7 +158,8 @@ Future<void> _saveFcmTokenToServer(String? token) async {
   await saveFcmTokenToPrefs(token);
 
   final userId = await getCurrentUserId();
-  if (userId != null) {
+  // Only update Firestore when we have a valid user (skip when 0, e.g. after account delete)
+  if (userId != null && userId != "0") {
     await FirebaseFirestore.instance
         .collection("users")
         .doc(userId)
@@ -239,7 +251,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'FestieFoodie',
+      title: 'Festival Foodie',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,

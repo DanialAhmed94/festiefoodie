@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:festiefoodie/constants/appConstants.dart';
@@ -8,13 +9,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../annim/transiton.dart';
+import '../../../apis/festivalCollection/getFestivalCollection.dart';
 import '../../../apis/stallManagment/addStall_api.dart';
 import '../../../models/festivalModel.dart';
 import '../../../models/menuItemModel.dart';
 import '../../../providers/festivalProvider.dart';
 import '../../../utilities/scaffoldBackground.dart';
 import '../mapViews/LocationMap.dart';
-import '../../../utilities/dilalogBoxes.dart'; // Contains showErrorDialog()
+import '../../../utilities/dilalogBoxes.dart' hide showErrorDialog; // Contains showErrorDialog()
 import '../../../utilities/imagePickerUtility.dart';
 import '../../../utilities/currencyUtility.dart';
 
@@ -27,6 +29,7 @@ class AddStallView extends StatefulWidget {
 
 class _AddStallViewState extends State<AddStallView> {
   String? _selectedFestivalId;
+  String? _selectedFestivalLabel;
   String? _selectedEventId;
 
   XFile? _selectedImage;
@@ -47,8 +50,14 @@ class _AddStallViewState extends State<AddStallView> {
   @override
   void initState() {
     super.initState();
-    // Initialize with one empty menu item
     addMenuItem();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final p = Provider.of<FestivalProvider>(context, listen: false);
+      if (p.festivals.isEmpty && !p.isFetching) {
+        p.fetchFestivals(context);
+      }
+    });
   }
 
   @override
@@ -89,6 +98,38 @@ class _AddStallViewState extends State<AddStallView> {
       menuItems[index].priceController.dispose();
       menuItems.removeAt(index);
     });
+  }
+
+  Future<void> _openFestivalPicker(BuildContext context) async {
+    final festivalProvider =
+        Provider.of<FestivalProvider>(context, listen: false);
+    if (festivalProvider.festivals.isEmpty && !festivalProvider.isFetching) {
+      await festivalProvider.fetchFestivals(context);
+    }
+    if (!mounted) return;
+    final picked = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => _FestivalPickerSheet(
+        initialSelectedId: _selectedFestivalId,
+      ),
+    );
+    if (!mounted || picked == null) return;
+    final id = picked['id'];
+    if (id == null || id.isEmpty) return;
+    final label = picked['label'] ?? id;
+    setState(() {
+      _selectedFestivalId = id;
+      _selectedFestivalLabel = label;
+      _selectedEventId = null;
+    });
+    if (!mounted) return;
+    await Provider.of<EventProvider>(context, listen: false)
+        .fetchEvents(context, id);
   }
 
   Future<void> _pickImage() async {
@@ -266,106 +307,78 @@ class _AddStallViewState extends State<AddStallView> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // 1) Use Consumer to watch isFetching & festivals
                       Consumer<FestivalProvider>(
                         builder: (context, festivalProvider, child) {
-                          return DropdownButtonFormField<String>(
-                            key: Key(festivalProvider.isFetching.toString()),
-                            value: _selectedFestivalId,
-                            onTap: () async {
-                              if (festivalProvider.festivals.isEmpty &&
-                                  !festivalProvider.isFetching) {
-                                await festivalProvider.fetchFestivals(context);
-                              }
-                            },
-                            hint: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth:
-                                    MediaQuery.of(context).size.width * 0.6,
+                          final loadingInitial = festivalProvider.isFetching &&
+                              festivalProvider.festivals.isEmpty;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: loadingInitial
+                                ? null
+                                : () => _openFestivalPicker(context),
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                prefixIcon: SvgPicture.asset(
+                                  AppConstants.festivalPrefix,
+                                  color: const Color(0xFFF96222),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.only(
+                                  left: 12,
+                                  right: 12,
+                                  top: 16,
+                                  bottom: 16,
+                                ),
+                                suffixIcon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.black54,
+                                ),
                               ),
-                              child: const Text(
-                                "Choose a festival",
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                            decoration: InputDecoration(
-                              prefixIcon: SvgPicture.asset(
-                                AppConstants.festivalPrefix,
-                                color: const Color(0xFFF96222),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              contentPadding: const EdgeInsets.only(
-                                left: 12,
-                                right: 40, // Extra space for dropdown arrow
-                                top: 16,
-                                bottom: 16,
-                              ),
-                            ),
-                            isExpanded: true,
-                            items: festivalProvider.isFetching
-                                ? [
-                                    DropdownMenuItem<String>(
-                                      value: null,
-                                      enabled: false,
-                                      child: Row(
-                                        children: const [
-                                          SizedBox(
-                                            height: 16,
-                                            width: 16,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2),
+                              child: loadingInitial
+                                  ? Row(
+                                      children: const [
+                                        SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFF96222),
                                           ),
-                                          SizedBox(width: 8),
-                                          Text("Loading festivals..."),
-                                        ],
-                                      ),
-                                    ),
-                                  ]
-                                : festivalProvider.festivals.isNotEmpty
-                                    ? festivalProvider.festivals
-                                        .map((festival) {
-                                        return DropdownMenuItem<String>(
-                                          value: festival.id.toString(),
-                                          child: ConstrainedBox(
-                                            constraints: BoxConstraints(
-                                              maxWidth: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.6,
-                                            ),
-                                            child: Text(
-                                              festival.nameOrganizer ??
-                                                  festival.description,
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                            ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'Loading festivals...',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: Colors.black54,
                                           ),
-                                        );
-                                      }).toList()
-                                    : [
-                                        DropdownMenuItem<String>(
-                                          value: null,
-                                          enabled: false,
-                                          child:
-                                              const Text("No festivals found"),
                                         ),
                                       ],
-                            onChanged: (newValue) {
-                              setState(() {
-                                _selectedFestivalId = newValue;
-                                _selectedEventId = null;
-                              });
-                              if (newValue != null) {
-                                Provider.of<EventProvider>(context,
-                                        listen: false)
-                                    .fetchEvents(context, newValue);
-                              }
-                            },
+                                    )
+                                  : Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _selectedFestivalLabel ??
+                                                'Choose a festival',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              color: _selectedFestivalId ==
+                                                      null
+                                                  ? Colors.black54
+                                                  : Colors.black87,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
                           );
                         },
                       ),
@@ -1315,6 +1328,301 @@ class _AddStallViewState extends State<AddStallView> {
           fillColor: Colors.white,
           prefixIcon: Icon(icon, color: Colors.orange),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+}
+
+String _festivalPickerDisplayName(FestivalResource f) {
+  final n = f.nameOrganizer?.trim();
+  if (n != null && n.isNotEmpty && n.toLowerCase() != 'n/a') {
+    return n;
+  }
+  final d = f.description.trim();
+  if (d.isNotEmpty && d.toLowerCase() != 'n/a') {
+    return d;
+  }
+  return 'Festival #${f.id}';
+}
+
+class _FestivalPickerSheet extends StatefulWidget {
+  const _FestivalPickerSheet({this.initialSelectedId});
+
+  final String? initialSelectedId;
+
+  @override
+  State<_FestivalPickerSheet> createState() => _FestivalPickerSheetState();
+}
+
+class _FestivalPickerSheetState extends State<_FestivalPickerSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  Timer? _searchDebounce;
+  bool _isSearchApi = false;
+  String? _searchError;
+  List<FestivalResource> _searchResults = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScrollNearEnd);
+    _searchController.addListener(_onSearchTextChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final p = Provider.of<FestivalProvider>(context, listen: false);
+      if (p.festivals.isEmpty && !p.isFetching) {
+        p.fetchFestivals(context);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScrollNearEnd);
+    _scrollController.dispose();
+    _searchController.removeListener(_onSearchTextChanged);
+    _searchController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchTextChanged() {
+    _searchDebounce?.cancel();
+    setState(() {});
+    final query = _searchController.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searchError = null;
+        _isSearchApi = false;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _runSearchApi(query);
+    });
+  }
+
+  Future<void> _runSearchApi(String query) async {
+    setState(() {
+      _isSearchApi = true;
+      _searchError = null;
+    });
+    try {
+      final response =
+          await fetchFestivalsWithQuery(page: 1, search: query);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = response.data;
+        _isSearchApi = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searchResults = [];
+        _isSearchApi = false;
+        _searchError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _onScrollNearEnd() {
+    if (!mounted) return;
+    if (_searchController.text.trim().isNotEmpty) return;
+    final p = Provider.of<FestivalProvider>(context, listen: false);
+    if (!p.hasMore || p.isLoadingMore || p.isFetching) return;
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
+      p.loadMore(context);
+    }
+  }
+
+  void _select(FestivalResource f) {
+    Navigator.pop(context, {
+      'id': f.id.toString(),
+      'label': _festivalPickerDisplayName(f),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final h = (mq.size.height * 0.72).clamp(280.0, mq.size.height * 0.9);
+    final query = _searchController.text.trim();
+    final searching = query.isNotEmpty;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: SizedBox(
+        height: h,
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 4, 0),
+            child: Row(
+              children: [
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Select festival',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search festivals...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFFF96222),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Consumer<FestivalProvider>(
+              builder: (context, p, _) {
+                if (searching) {
+                  if (_isSearchApi) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFF96222),
+                      ),
+                    );
+                  }
+                  if (_searchError != null) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _searchError!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    );
+                  }
+                  if (_searchResults.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No festivals match your search',
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    itemCount: _searchResults.length,
+                    itemBuilder: (context, i) {
+                      final f = _searchResults[i];
+                      final name = _festivalPickerDisplayName(f);
+                      final selected =
+                          widget.initialSelectedId == f.id.toString();
+                      return ListTile(
+                        leading: Icon(
+                          selected ? Icons.check_circle : Icons.festival,
+                          color: selected
+                              ? const Color(0xFFF96222)
+                              : Colors.grey,
+                        ),
+                        title: Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => _select(f),
+                      );
+                    },
+                  );
+                }
+
+                if (p.isFetching && p.festivals.isEmpty) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFF96222),
+                    ),
+                  );
+                }
+                if (p.festivals.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No festivals available',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  );
+                }
+
+                final footer =
+                    p.hasMore && p.isLoadingMore ? 1 : 0;
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(bottom: 16),
+                  itemCount: p.festivals.length + footer,
+                  itemBuilder: (context, i) {
+                    if (footer != 0 && i == p.festivals.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFF96222),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    final f = p.festivals[i];
+                    final name = _festivalPickerDisplayName(f);
+                    final selected =
+                        widget.initialSelectedId == f.id.toString();
+                    return ListTile(
+                      leading: Icon(
+                        selected ? Icons.check_circle : Icons.festival,
+                        color:
+                            selected ? const Color(0xFFF96222) : Colors.grey,
+                      ),
+                      title: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => _select(f),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
         ),
       ),
     );

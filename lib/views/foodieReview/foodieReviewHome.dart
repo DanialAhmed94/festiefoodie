@@ -142,14 +142,19 @@ class _MainScreenState extends State<FoodieReviewHomeMap> {
                 ),
               );
             } else {
+              // Map first; location strip on top would hide in-map search unless we inset it.
               return Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  GoogleMapWidget(),
+                  GoogleMapWidget(
+                    contentTopInset: 120,
+                  ),
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
                     child: Container(
+                      constraints: const BoxConstraints(minHeight: 100),
                       decoration: BoxDecoration(
                         color: Color(0xFFF9F9F9),
                         borderRadius: BorderRadius.only(

@@ -3,13 +3,62 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_models.dart';
 import 'firestore_user_service.dart';
 
+/// Page size for chat message queries (recent stream + "load older" pages).
+class ChatMessagePage {
+  ChatMessagePage._();
+
+  static const int size = 40;
+}
+
+class RecentMessagesPayload {
+  /// Chronological order (oldest → newest) within this live window.
+  final List<ChatMessage> messagesAscending;
+  /// Raw Firestore doc for the oldest row in the limited query (pagination cursor).
+  final DocumentSnapshot? oldestInQuery;
+
+  RecentMessagesPayload({
+    required this.messagesAscending,
+    required this.oldestInQuery,
+  });
+}
+
+class OlderMessagesPageResult {
+  final List<ChatMessage> messagesAscending;
+  final DocumentSnapshot? cursorForNextPage;
+  final bool hasMore;
+
+  OlderMessagesPageResult({
+    required this.messagesAscending,
+    required this.cursorForNextPage,
+    required this.hasMore,
+  });
+}
+
 class FirestoreChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _chatsCollection = 'chats';
   static const String _messagesCollection = 'messages';
 
+  static const int chatMessagePageSize = ChatMessagePage.size;
+
   // Getter for firestore instance (for cleanup operations)
   static FirebaseFirestore get firestore => _firestore;
+
+  /// When user deletes chat, they only see messages strictly after this time.
+  static DateTime? _lastClearedAtForUser(
+      Map<String, dynamic>? chatData, String? userId) {
+    if (chatData == null || userId == null) return null;
+    final raw = chatData['lastClearedAt'];
+    if (raw is! Map) return null;
+    final v = raw[userId];
+    if (v is Timestamp) return v.toDate();
+    return null;
+  }
+
+  static bool _messageAfterClearCutoff(ChatMessage m, DateTime? clearedAt) {
+    if (clearedAt == null) return true;
+    return m.timestamp.isAfter(clearedAt);
+  }
 
   // Helper method to safely convert unread counts from Firestore
   static Map<String, int> _parseUnreadCounts(dynamic unreadCountsData) {
@@ -399,6 +448,16 @@ class FirestoreChatService {
 
       if (chatDoc.exists) {
         final chatData = chatDoc.data()!;
+        final deletedFor = List<String>.from(chatData['deletedFor'] ?? []);
+
+        // Clear deletedFor so the thread shows in inbox again; lastClearedAt stays
+        // so users who deleted still only see messages after their clear time.
+        if (deletedFor.isNotEmpty) {
+          await _firestore.collection(_chatsCollection).doc(chatId).update({
+            'deletedFor': <String>[],
+          });
+        }
+
         final participants = List<String>.from(chatData['participants'] ?? []);
 
         for (final participantId in participants) {
@@ -420,7 +479,7 @@ class FirestoreChatService {
     }
   }
 
-  // Simple stream messages for a chat
+  /// Full history stream (no limit). Prefer [streamRecentMessagesPayload] in UI for performance.
   static Stream<List<ChatMessage>> streamMessages(String chatId) {
     return _firestore
         .collection(_chatsCollection)
@@ -429,25 +488,130 @@ class FirestoreChatService {
         .orderBy('timestamp', descending: false)
         .snapshots()
         .asyncMap((snapshot) async {
-      // Get current user ID to filter deleted messages
       final currentUserId = await FirestoreUserService.getUserId();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
+      final chatData = chatDoc.data();
+      final clearedAt = _lastClearedAtForUser(chatData, currentUserId);
 
       final messages = snapshot.docs
           .map((doc) => ChatMessage.fromMap(doc.data() as Map<String, dynamic>))
           .where((message) {
-        // Filter out hard deleted messages
         if (message.isDeleted) return false;
-
-        // Filter out messages soft deleted for current user
-        if (currentUserId != null && message.isDeletedForUser(currentUserId)) {
+        if (currentUserId != null &&
+            message.isDeletedForUser(currentUserId)) {
           return false;
         }
-
+        if (!_messageAfterClearCutoff(message, clearedAt)) return false;
         return true;
       }).toList();
 
       return messages;
     });
+  }
+
+  /// Live updates for the [limit] most recent messages (by server time), plus a cursor to load older pages.
+  static Stream<RecentMessagesPayload> streamRecentMessagesPayload(
+    String chatId, {
+    int limit = ChatMessagePage.size,
+  }) {
+    return _firestore
+        .collection(_chatsCollection)
+        .doc(chatId)
+        .collection(_messagesCollection)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      final currentUserId = await FirestoreUserService.getUserId();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
+      final chatData = chatDoc.data();
+      final clearedAt = _lastClearedAtForUser(chatData, currentUserId);
+
+      final oldestInQuery =
+          snapshot.docs.isEmpty ? null : snapshot.docs.last;
+
+      final filtered = <ChatMessage>[];
+      for (final doc in snapshot.docs) {
+        final message =
+            ChatMessage.fromMap(doc.data() as Map<String, dynamic>);
+        if (message.isDeleted) continue;
+        if (currentUserId != null &&
+            message.isDeletedForUser(currentUserId)) {
+          continue;
+        }
+        if (!_messageAfterClearCutoff(message, clearedAt)) continue;
+        filtered.add(message);
+      }
+      filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final ascending = filtered.reversed.toList();
+
+      return RecentMessagesPayload(
+        messagesAscending: ascending,
+        oldestInQuery: oldestInQuery,
+      );
+    });
+  }
+
+  /// Messages strictly older than [startAfterDocument] (descending query page), ascending for UI merge.
+  static Future<OlderMessagesPageResult> loadOlderMessagesPage(
+    String chatId, {
+    required DocumentSnapshot startAfterDocument,
+    int limit = ChatMessagePage.size,
+  }) async {
+    try {
+      final currentUserId = await FirestoreUserService.getUserId();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
+      final clearedAt = _lastClearedAtForUser(chatDoc.data(), currentUserId);
+
+      final qs = await _firestore
+          .collection(_chatsCollection)
+          .doc(chatId)
+          .collection(_messagesCollection)
+          .orderBy('timestamp', descending: true)
+          .startAfterDocument(startAfterDocument)
+          .limit(limit)
+          .get();
+
+      if (qs.docs.isEmpty) {
+        return OlderMessagesPageResult(
+          messagesAscending: [],
+          cursorForNextPage: null,
+          hasMore: false,
+        );
+      }
+
+      final nextCursor = qs.docs.last;
+      final filtered = <ChatMessage>[];
+      for (final doc in qs.docs) {
+        final message =
+            ChatMessage.fromMap(doc.data() as Map<String, dynamic>);
+        if (message.isDeleted) continue;
+        if (currentUserId != null &&
+            message.isDeletedForUser(currentUserId)) {
+          continue;
+        }
+        if (!_messageAfterClearCutoff(message, clearedAt)) continue;
+        filtered.add(message);
+      }
+      filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final ascending = filtered.reversed.toList();
+
+      return OlderMessagesPageResult(
+        messagesAscending: ascending,
+        cursorForNextPage: nextCursor,
+        hasMore: qs.docs.length >= limit,
+      );
+    } catch (e) {
+      print('❌ Error loading older messages: $e');
+      return OlderMessagesPageResult(
+        messagesAscending: [],
+        cursorForNextPage: null,
+        hasMore: false,
+      );
+    }
   }
 
   // Simple delete message method
@@ -685,8 +849,8 @@ class FirestoreChatService {
 
           // Check if the chat's last message is visible to this user
           final chatLastMessageId = chatData['lastMessageSender'] != null &&
-                  chatData['lastMessageSender'].isNotEmpty
-              ? await _getLastMessageIdForUser(doc.id, userId)
+                  chatData['lastMessageSender'].toString().isNotEmpty
+              ? await _getLastMessageIdForUser(doc.id, userId, chatData)
               : null;
 
           if (chatLastMessageId != null) {
@@ -699,7 +863,7 @@ class FirestoreChatService {
           } else {
             // Chat's last message is not visible to this user, find the actual last visible message
             final lastVisibleMessage =
-                await _getLastVisibleMessageForUser(doc.id, userId);
+                await _getLastVisibleMessageForUser(doc.id, userId, chatData);
             if (lastVisibleMessage != null) {
               lastMessage = lastVisibleMessage.message;
               lastMessageTime = lastVisibleMessage.timestamp;
@@ -761,23 +925,25 @@ class FirestoreChatService {
 
   // Helper method to get the last message ID for a user
   static Future<String?> _getLastMessageIdForUser(
-      String chatId, String userId) async {
+    String chatId,
+    String userId,
+    Map<String, dynamic> chatData,
+  ) async {
     try {
+      final clearedAt = _lastClearedAtForUser(chatData, userId);
       final messagesQuery = await _firestore
           .collection(_chatsCollection)
           .doc(chatId)
           .collection(_messagesCollection)
           .orderBy('timestamp', descending: true)
-          .limit(1)
           .get();
 
-      if (messagesQuery.docs.isNotEmpty) {
-        final lastMessage = ChatMessage.fromMap(
-            messagesQuery.docs.first.data() as Map<String, dynamic>);
-        // Check if this message is visible to the user
-        if (!lastMessage.isDeleted && !lastMessage.isDeletedForUser(userId)) {
-          return messagesQuery.docs.first.id;
-        }
+      for (final doc in messagesQuery.docs) {
+        final message = ChatMessage.fromMap(doc.data() as Map<String, dynamic>);
+        if (message.isDeleted) continue;
+        if (message.isDeletedForUser(userId)) continue;
+        if (!_messageAfterClearCutoff(message, clearedAt)) continue;
+        return doc.id;
       }
       return null;
     } catch (e) {
@@ -788,8 +954,12 @@ class FirestoreChatService {
 
   // Helper method to get the last visible message for a user
   static Future<ChatMessage?> _getLastVisibleMessageForUser(
-      String chatId, String userId) async {
+    String chatId,
+    String userId,
+    Map<String, dynamic> chatData,
+  ) async {
     try {
+      final clearedAt = _lastClearedAtForUser(chatData, userId);
       final messagesQuery = await _firestore
           .collection(_chatsCollection)
           .doc(chatId)
@@ -799,10 +969,10 @@ class FirestoreChatService {
 
       for (final doc in messagesQuery.docs) {
         final message = ChatMessage.fromMap(doc.data() as Map<String, dynamic>);
-        // Check if this message is visible to the user
-        if (!message.isDeleted && !message.isDeletedForUser(userId)) {
-          return message;
-        }
+        if (message.isDeleted) continue;
+        if (message.isDeletedForUser(userId)) continue;
+        if (!_messageAfterClearCutoff(message, clearedAt)) continue;
+        return message;
       }
       return null;
     } catch (e) {
@@ -819,7 +989,6 @@ class FirestoreChatService {
         throw Exception('User not authenticated');
       }
 
-      // Get the chat to check if it exists
       final chatDoc =
           await _firestore.collection(_chatsCollection).doc(chatId).get();
 
@@ -831,21 +1000,18 @@ class FirestoreChatService {
       final participants = List<String>.from(chatData['participants'] ?? []);
       final deletedFor = List<String>.from(chatData['deletedFor'] ?? []);
 
-      // Add current user to deletedFor array
-      if (!deletedFor.contains(currentUserId)) {
-        deletedFor.add(currentUserId);
+      final now = Timestamp.now();
+      await _firestore.collection(_chatsCollection).doc(chatId).update({
+        'deletedFor': FieldValue.arrayUnion([currentUserId]),
+        'lastClearedAt.$currentUserId': now,
+      });
 
-        await _firestore.collection(_chatsCollection).doc(chatId).update({
-          'deletedFor': deletedFor,
-        });
+      print('✅ Chat soft deleted for user: $currentUserId (lastClearedAt set)');
 
-        print('✅ Chat soft deleted for user: $currentUserId');
-
-        // Check if all participants have deleted the chat
-        if (deletedFor.length == participants.length) {
-          print('🗑️ All participants deleted chat, performing hard delete');
-          await deleteChatCompletely(chatId);
-        }
+      final effectiveDeleted = {...deletedFor, currentUserId};
+      if (effectiveDeleted.length == participants.length) {
+        print('🗑️ All participants deleted chat, performing hard delete');
+        await deleteChatCompletely(chatId);
       }
     } catch (e) {
       print('❌ Error soft deleting chat: $e');
@@ -1017,6 +1183,11 @@ class FirestoreChatService {
     DocumentSnapshot? lastDocument,
   }) async {
     try {
+      final currentUserId = await FirestoreUserService.getUserId();
+      final chatDoc =
+          await _firestore.collection(_chatsCollection).doc(chatId).get();
+      final clearedAt = _lastClearedAtForUser(chatDoc.data(), currentUserId);
+
       Query query = _firestore
           .collection(_chatsCollection)
           .doc(chatId)
@@ -1031,9 +1202,16 @@ class FirestoreChatService {
       final querySnapshot = await query.get();
       final messages = querySnapshot.docs
           .map((doc) => ChatMessage.fromMap(doc.data() as Map<String, dynamic>))
+          .where((message) {
+            if (message.isDeleted) return false;
+            if (currentUserId != null &&
+                message.isDeletedForUser(currentUserId)) {
+              return false;
+            }
+            return _messageAfterClearCutoff(message, clearedAt);
+          })
           .toList();
 
-      // Reverse to get chronological order
       return messages.reversed.toList();
     } catch (e) {
       print('❌ Error getting messages with pagination: $e');

@@ -20,6 +20,7 @@ class _InboxViewState extends State<InboxView> {
   int _totalUnreadCount = 0;
   bool _isNavigating = false; // Prevent multiple navigation
   String? _navigatingToChatId; // Track which chat is being navigated to
+  bool _userIdResolved = false;
 
   @override
   void initState() {
@@ -28,15 +29,50 @@ class _InboxViewState extends State<InboxView> {
   }
 
   Future<void> _loadCurrentUser() async {
+    if (!mounted) return;
+    setState(() => _userIdResolved = false);
     try {
       _currentUserId = await FirestoreUserService.getUserId();
       print('🔍 Current user ID loaded: $_currentUserId');
-      if (_currentUserId != null) {
-        setState(() {});
-      }
     } catch (e) {
       print('❌ Error loading current user: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _userIdResolved = true);
+      }
     }
+  }
+
+  Widget _inboxStreamLoading(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: Colors.blue.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: "Ubuntu",
+                fontSize: 15,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _addNewChat(ChatListItem newChat) {
@@ -385,6 +421,9 @@ class _InboxViewState extends State<InboxView> {
   }
 
   Widget _buildMessagesList() {
+    if (!_userIdResolved) {
+      return _inboxStreamLoading('Loading your account…');
+    }
     if (_currentUserId == null) {
       return Center(child: Text('Please login to view chats'));
     }
@@ -394,6 +433,11 @@ class _InboxViewState extends State<InboxView> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error loading chats: ${snapshot.error}'));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return _inboxStreamLoading('Loading conversations…');
         }
 
         final allChats = snapshot.data ?? [];
@@ -473,6 +517,9 @@ class _InboxViewState extends State<InboxView> {
   }
 
   Widget _buildGroupsList() {
+    if (!_userIdResolved) {
+      return _inboxStreamLoading('Loading your account…');
+    }
     if (_currentUserId == null) {
       return Center(child: Text('Please login to view groups'));
     }
@@ -482,6 +529,11 @@ class _InboxViewState extends State<InboxView> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error loading groups: ${snapshot.error}'));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return _inboxStreamLoading('Loading groups…');
         }
 
         final allChats = snapshot.data ?? [];

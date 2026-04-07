@@ -9,6 +9,8 @@ class ChatUser {
   final DateTime createdAt;
   final bool isOnline;
   final DateTime? lastSeen;
+  /// Client app identifier written when the user doc is created (signup / Firestore sync).
+  final String? registeredFromApp;
 
   ChatUser({
     required this.userId,
@@ -18,6 +20,7 @@ class ChatUser {
     required this.createdAt,
     this.isOnline = false,
     this.lastSeen,
+    this.registeredFromApp,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +32,7 @@ class ChatUser {
       'createdAt': Timestamp.fromDate(createdAt),
       'isOnline': isOnline,
       'lastSeen': lastSeen != null ? Timestamp.fromDate(lastSeen!) : null,
+      'registeredFromApp': registeredFromApp,
     };
   }
 
@@ -43,6 +47,7 @@ class ChatUser {
       lastSeen: map['lastSeen'] != null
           ? (map['lastSeen'] as Timestamp).toDate()
           : null,
+      registeredFromApp: map['registeredFromApp'] as String?,
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:festiefoodie/views/foodieReview/seeRatings/stallsByFestival.dart';
 import 'package:festiefoodie/views/foodieStall/addStallView/StallsbyFestival.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +7,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../../annim/transiton.dart';
+import '../../../apis/festivalCollection/getFestivalCollection.dart';
 import '../../../constants/appConstants.dart';
+import '../../../models/festivalModel.dart';
 import '../../../providers/festivalProvider.dart';
 import '../../../utilities/reviewsScaffoldBackground.dart';
 import '../../../utilities/scaffoldBackground.dart';
@@ -20,66 +24,107 @@ class SeeAllFestivals extends StatefulWidget {
 class _ViewAllFestivalsState extends State<SeeAllFestivals> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+  Timer? _searchDebounce;
   bool _isSearching = false;
-  List<dynamic> _filteredFestivals = [];
+  bool _isSearchingApi = false;
+  String? _searchErrorApi;
+  List<FestivalResource> _searchResultFestivals = [];
 
   @override
   void initState() {
     super.initState();
-    // Fetch festivals once the widget is built.
+    _scrollController.addListener(_onScrollNearEnd);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<FestivalProvider>(context, listen: false).fetchFestivals(context);
     });
-    
-    // Listen to search controller changes
     _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScrollNearEnd);
+    _scrollController.dispose();
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
+  void _onScrollNearEnd() {
+    if (!mounted) return;
+    if (_searchController.text.trim().isNotEmpty) return;
+    final p = Provider.of<FestivalProvider>(context, listen: false);
+    if (!p.hasMore || p.isLoadingMore || p.isFetching) return;
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final threshold = 280.0;
+    final nearEnd = pos.pixels >= pos.maxScrollExtent - threshold;
+    if (nearEnd) {
+      debugPrint(
+          '📄 SeeAllFestivals scroll: trigger loadMore '
+          'pixels=${pos.pixels.toStringAsFixed(0)} max=${pos.maxScrollExtent.toStringAsFixed(0)} '
+          'hasMore=${p.hasMore} list=${p.festivals.length}');
+      p.loadMore(context);
+    }
+  }
+
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase().trim();
+    final query = _searchController.text.trim();
+    _searchDebounce?.cancel();
+
     setState(() {
       _isSearching = query.isNotEmpty;
     });
-    
+
     if (query.isEmpty) {
       setState(() {
-        _filteredFestivals = [];
+        _searchResultFestivals = [];
+        _searchErrorApi = null;
+        _isSearchingApi = false;
       });
       return;
     }
 
-    // Get the current festival provider
-    final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
-    
-    // Filter festivals based on search query
-    final filtered = festivalProvider.festivals.where((festival) {
-      final nameOrganizer = (festival.nameOrganizer ?? '').toLowerCase();
-      final description = (festival.description ?? '').toLowerCase();
-      final descriptionOrganizer = (festival.descriptionOrganizer ?? '').toLowerCase();
-      
-      return nameOrganizer.contains(query) || 
-             description.contains(query) || 
-             descriptionOrganizer.contains(query);
-    }).toList();
-
-    setState(() {
-      _filteredFestivals = filtered;
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _performSearchApi(query);
     });
   }
 
+  Future<void> _performSearchApi(String query) async {
+    if (!mounted) return;
+    setState(() {
+      _isSearchingApi = true;
+      _searchErrorApi = null;
+    });
+    try {
+      final response = await fetchFestivalsWithQuery(page: 1, search: query);
+      if (!mounted) return;
+      setState(() {
+        _searchResultFestivals = response.data;
+        _isSearchingApi = false;
+        _searchErrorApi = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searchResultFestivals = [];
+        _isSearchingApi = false;
+        _searchErrorApi = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
   void _clearSearch() {
+    _searchDebounce?.cancel();
     _searchController.clear();
     _searchFocusNode.unfocus();
     setState(() {
       _isSearching = false;
-      _filteredFestivals = [];
+      _searchResultFestivals = [];
+      _searchErrorApi = null;
+      _isSearchingApi = false;
     });
   }
 
@@ -127,6 +172,7 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
                   child: TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
+                    textInputAction: TextInputAction.search,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -201,12 +247,16 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
                         size: 20,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        "Search Results (${_filteredFestivals.length})",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                      Expanded(
+                        child: Text(
+                          _isSearchingApi
+                              ? 'Searching…'
+                              : 'Search Results (${_searchResultFestivals.length})',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                     ],
@@ -214,29 +264,121 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
                 ),
               ],
 
-              // Content
               Expanded(
-                child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                if (festivalProvider.isFetching && festivalProvider.festivals.isEmpty)
-                  const Center(child: CircularProgressIndicator())
-                      else if (_isSearching && _filteredFestivals.isEmpty)
-                        _buildNoResultsWidget()
-                      else if ((_isSearching ? _filteredFestivals : festivalProvider.festivals).isEmpty)
-                        _buildNoFestivalsWidget()
-                      else
-                        _buildFestivalsList(_isSearching ? _filteredFestivals : festivalProvider.festivals),
-                const SizedBox(height: 10),
-              ],
-            ),
-                ),
+                child: _buildFestivalBody(festivalProvider),
               ),
+              if (!_isSearching && festivalProvider.isLoadingMore)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFFF96222),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildFestivalBody(FestivalProvider festivalProvider) {
+    final query = _searchController.text.trim();
+
+    if (!_isSearching &&
+        festivalProvider.isFetching &&
+        festivalProvider.festivals.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_isSearching && _isSearchingApi && query.isNotEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF96222),
+        ),
+      );
+    }
+
+    if (_isSearching &&
+        !_isSearchingApi &&
+        query.isNotEmpty &&
+        _searchResultFestivals.isEmpty) {
+      return _buildNoResultsWidget();
+    }
+
+    final list =
+        _isSearching ? _searchResultFestivals : festivalProvider.festivals;
+    if (list.isEmpty) {
+      return _buildNoFestivalsWidget();
+    }
+
+    final showLoadMoreFooter =
+        !_isSearching && festivalProvider.isLoadingMore;
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      itemCount: list.length + (showLoadMoreFooter ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (showLoadMoreFooter && index == list.length) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Color(0xFFF96222),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Loading more festivals…',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final festival = list[index];
+        final title = festival.nameOrganizer ?? festival.description;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GestureDetector(
+            onTap: () {
+              _clearSearch();
+              Navigator.push(
+                context,
+                FadePageRouteBuilder(
+                  widget: StallsByFestival(
+                    festivalId: festival.id.toString(),
+                  ),
+                ),
+              );
+            },
+            child: _buildFestivalCard(
+              context,
+              MediaQuery.of(context).size.width * 0.95,
+              title,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -344,6 +486,20 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
             ),
           ),
           const SizedBox(height: 20),
+          if (_searchErrorApi != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                _searchErrorApi!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
             "No festivals found",
             style: TextStyle(
@@ -404,37 +560,6 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
     );
   }
 
-  Widget _buildFestivalsList(List<dynamic> festivals) {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: festivals.length,
-      itemBuilder: (context, index) {
-        final festival = festivals[index];
-        final title = festival.nameOrganizer ?? festival.description;
-        
-                 return Padding(
-           padding: const EdgeInsets.only(bottom: 10),
-           child: GestureDetector(
-             onTap: () {
-               // Clear search and unfocus keyboard
-               _clearSearch();
-               // Navigate to stalls
-               Navigator.push(
-                 context,
-                 FadePageRouteBuilder(widget: StallsByFestival(festivalId: festival.id.toString())),
-               );
-             },
-             child: _buildFestivalCard(
-               context,
-               MediaQuery.of(context).size.width * 0.95,
-               title,
-             ),
-           ),
-         );
-      },
-    );
-  }
 }
 
 

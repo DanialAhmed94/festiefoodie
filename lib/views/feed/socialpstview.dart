@@ -241,7 +241,7 @@ class _SocialMediaHomeViewState extends State<SocialMediaHomeView> {
                     IconButton(
                       icon: const Icon(
                         Icons.message,
-                        color: Colors.blue,
+                        color: Colors.white,
                         size: 24,
                       ),
                       onPressed: () {
@@ -1466,12 +1466,11 @@ class FullScreenView extends StatefulWidget {
 }
 
 class _FullScreenViewState extends State<FullScreenView> {
-  late VideoPlayerController _videoController; // Add this declaration
+  late VideoPlayerController _videoController;
   ChewieController? _chewieController;
   bool _isLoading = true;
 
   double? _aspectRatio;
-  // bool _isLoading = true;
   @override
   void initState() {
     super.initState();

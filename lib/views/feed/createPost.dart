@@ -3,9 +3,6 @@ import 'dart:io';
 import 'dart:convert'; // For base64 encoding
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/gestures.dart';
@@ -362,86 +359,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     return completer.future;
   }
-
-  /// Compress a video using FFmpegKit with progress callbacks
-  // Future<File> _compressVideo(File file) async {
-  //   final Directory tempDir = await getTemporaryDirectory();
-  //   String outputPath = '${tempDir.path}/${Uuid().v4()}.mp4';
-  //
-  //   // Get video duration using video_compress package
-  //   MediaInfo? info = await VideoCompress.getMediaInfo(file.path);
-  //   double duration = info.duration != null ? info.duration! / 1000 : 1.0; // in seconds
-  //
-  //   // FFmpeg command for compression with 'ultrafast' preset
-  //   final String command =
-  //       '-i "${file.path}" -vcodec libx264 -preset ultrafast -crf 28 -acodec aac -b:a 128k "$outputPath"';
-  //
-  //   Completer<File> completer = Completer<File>();
-  //
-  //   FFmpegKit.executeAsync(
-  //     command,
-  //         (session) async {
-  //       // Execution completed
-  //       final returnCode = await session.getReturnCode();
-  //       if (ReturnCode.isSuccess(returnCode)) {
-  //         File compressedFile = File(outputPath);
-  //         if (await compressedFile.exists()) {
-  //           if (mounted) {
-  //             completer.complete(compressedFile);
-  //           } else {
-  //             completer.completeError(Exception("Widget disposed before compression completed."));
-  //           }
-  //         } else {
-  //           if (mounted) {
-  //             completer.completeError(Exception("Compressed video file does not exist."));
-  //           } else {
-  //             completer.completeError(Exception("Widget disposed before compression completed."));
-  //           }
-  //         }
-  //       } else {
-  //         if (mounted) {
-  //           completer.completeError(Exception("Video compression failed with return code: $returnCode"));
-  //         } else {
-  //           completer.completeError(Exception("Widget disposed before compression completed."));
-  //         }
-  //       }
-  //     },
-  //         (log) {
-  //       // Log callback (optional)
-  //       debugPrint("FFmpeg Log: ${log.getMessage()}");
-  //     },
-  //         (statistics) {
-  //       // Statistics callback for progress
-  //       int? time = statistics.getTime(); // Fixed: Use int instead of double
-  //
-  //       if (time != null && duration > 0) {
-  //         double progress = (time / (duration * 1000));
-  //         if (progress.isFinite && progress <= 1.0 && mounted) {
-  //           setState(() {
-  //             _compressionProgress = progress;
-  //             _statusMessage = "Compressing... ${(progress * 100).toStringAsFixed(0)}%";
-  //           });
-  //         }
-  //       }
-  //     },
-  //     //     (statistics) {
-  //     //   // Statistics callback for progress
-  //     //   double? time = statistics.getTime(); // Current time in milliseconds
-  //     //
-  //     //   if (time != null && duration > 0) {
-  //     //     double progress = (time / (duration * 1000)); // Convert duration to milliseconds
-  //     //     if (progress.isFinite && progress <= 1.0 && mounted) {
-  //     //       setState(() {
-  //     //         _compressionProgress = progress;
-  //     //         _statusMessage = "Compressing... ${(progress * 100).toStringAsFixed(0)}%";
-  //     //       });
-  //     //     }
-  //     //   }
-  //     // },
-  //   );
-  //
-  //   return completer.future;
-  // }
 
   /// Helper method to delete temporary compressed files
   Future<void> _deleteTempFiles(List<UploadTaskModel> tasks) async {
@@ -884,9 +801,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
       }).toList();
 
       await Future.wait(cancelFutures);
-
-      // Cancel all active FFmpegKit sessions globally
-      await FFmpegKit.cancel(); // Cancel all active FFmpegKit sessions
 
       // Cancel any ongoing video compression via VideoCompress package
       await VideoCompress.cancelCompression();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../services/firestore_chat_service.dart';
@@ -42,26 +44,154 @@ class _ChatDetailViewState extends State<ChatDetailView> {
   Map<String, String> _senderNames =
       {}; // Cache for sender names in group chats
   bool _isGroupChat = false; // Flag to identify group chats
+  bool _userIdResolved = false;
+
+  StreamSubscription<RecentMessagesPayload>? _recentMessagesSub;
+  final List<ChatMessage> _olderMessages = [];
+  List<ChatMessage> _recentMessages = [];
+  DocumentSnapshot? _olderLoadCursor;
+  bool _hasMoreOlder = false;
+  bool _loadingOlder = false;
+  bool _recentPayloadReceived = false;
+  Object? _messagesStreamError;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
-    _setupScrollListener();
+    _scrollController.addListener(_onScroll);
     _checkIfGroupChat();
+    _subscribeRecentMessages();
   }
 
-  void _setupScrollListener() {
-    _scrollController.addListener(() {
-      if (_scrollController.hasClients) {
-        final currentPosition = _scrollController.position.pixels;
-        final maxScrollExtent = _scrollController.position.maxScrollExtent;
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final currentPosition = position.pixels;
+    final maxScrollExtent = position.maxScrollExtent;
 
-        // Check if user is near the bottom (within 100 pixels)
-        _shouldAutoScroll = (maxScrollExtent - currentPosition) < 100;
-        _lastScrollPosition = currentPosition;
-      }
+    _shouldAutoScroll = (maxScrollExtent - currentPosition) < 100;
+    _lastScrollPosition = currentPosition;
+
+    if (_hasMoreOlder &&
+        !_loadingOlder &&
+        _olderLoadCursor != null &&
+        currentPosition >= maxScrollExtent - 120) {
+      _loadOlderMessages();
+    }
+  }
+
+  void _subscribeRecentMessages() {
+    _recentMessagesSub?.cancel();
+    setState(() {
+      _olderMessages.clear();
+      _recentMessages = [];
+      _olderLoadCursor = null;
+      _hasMoreOlder = false;
+      _recentPayloadReceived = false;
+      _messagesStreamError = null;
     });
+
+    _recentMessagesSub = FirestoreChatService.streamRecentMessagesPayload(
+      widget.chatId,
+      limit: FirestoreChatService.chatMessagePageSize,
+    ).listen(
+      (payload) {
+        if (!mounted) return;
+        setState(() {
+          _messagesStreamError = null;
+          _recentPayloadReceived = true;
+          _recentMessages = payload.messagesAscending;
+          if (_olderLoadCursor == null && payload.oldestInQuery != null) {
+            _olderLoadCursor = payload.oldestInQuery;
+            _hasMoreOlder = true;
+          }
+        });
+        _handleNewMessages(_mergeMessageLists());
+        _updateDisplayDateFromMessages(_mergeMessageLists());
+      },
+      onError: (e) {
+        if (!mounted) return;
+        setState(() {
+          _messagesStreamError = e;
+          _recentPayloadReceived = true;
+        });
+      },
+    );
+  }
+
+  List<ChatMessage> _mergeMessageLists() {
+    final byId = <String, ChatMessage>{};
+    for (final m in _olderMessages) {
+      byId[m.messageId] = m;
+    }
+    for (final m in _recentMessages) {
+      byId[m.messageId] = m;
+    }
+    final list = byId.values.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return list;
+  }
+
+  void _updateDisplayDateFromMessages(List<ChatMessage> messages) {
+    if (messages.isEmpty) return;
+    final latestMessage = messages.last;
+    final messageDate = DateTime(
+      latestMessage.timestamp.year,
+      latestMessage.timestamp.month,
+      latestMessage.timestamp.day,
+    );
+    if (_currentDisplayDate != messageDate) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _currentDisplayDate = messageDate);
+        }
+      });
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
+    if (_loadingOlder || !_hasMoreOlder || _olderLoadCursor == null) return;
+
+    final cursor = _olderLoadCursor!;
+    double oldPixels = 0;
+    double oldMax = 0;
+    if (_scrollController.hasClients) {
+      oldPixels = _scrollController.position.pixels;
+      oldMax = _scrollController.position.maxScrollExtent;
+    }
+
+    setState(() => _loadingOlder = true);
+
+    try {
+      final result = await FirestoreChatService.loadOlderMessagesPage(
+        widget.chatId,
+        startAfterDocument: cursor,
+        limit: FirestoreChatService.chatMessagePageSize,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _olderMessages.insertAll(0, result.messagesAscending);
+        _olderLoadCursor = result.cursorForNextPage;
+        _hasMoreOlder =
+            result.hasMore && result.cursorForNextPage != null;
+        _loadingOlder = false;
+      });
+
+      _handleNewMessages(_mergeMessageLists());
+
+      if (_scrollController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients || !mounted) return;
+          final newMax = _scrollController.position.maxScrollExtent;
+          final delta = newMax - oldMax;
+          _scrollController.jumpTo(oldPixels + delta);
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingOlder = false);
+    }
   }
 
   void _checkIfGroupChat() {
@@ -91,17 +221,53 @@ class _ChatDetailViewState extends State<ChatDetailView> {
   }
 
   Future<void> _loadCurrentUser() async {
+    if (!mounted) return;
+    setState(() => _userIdResolved = false);
     try {
       _currentUserId = await FirestoreUserService.getUserId();
       if (_currentUserId != null) {
-        // Mark messages as read when opening chat
         await FirestoreChatService.markMessagesAsRead(
             widget.chatId, _currentUserId!);
       }
-      setState(() {});
     } catch (e) {
       print('❌ Error loading current user: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _userIdResolved = true);
+      }
     }
+  }
+
+  Widget _messagesStreamLoading(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: Colors.blue.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: "Ubuntu",
+                fontSize: 15,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _scrollToBottom({bool animate = true}) {
@@ -350,60 +516,76 @@ class _ChatDetailViewState extends State<ChatDetailView> {
   }
 
   Widget _buildMessagesList() {
-    if (_currentUserId == null) {
-      return Center(child: Text('Please login to view messages'));
+    if (!_userIdResolved) {
+      return _messagesStreamLoading('Loading messages…');
     }
 
-    return StreamBuilder<List<ChatMessage>>(
-      stream: FirestoreChatService.streamMessages(widget.chatId),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-              child: Text('Error loading messages: ${snapshot.error}'));
-        }
+    if (_messagesStreamError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Error loading messages',
+                style: TextStyle(
+                  fontFamily: 'Ubuntu',
+                  fontSize: 16,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _subscribeRecentMessages,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-        final messages = snapshot.data ?? [];
+    if (!_recentPayloadReceived) {
+      return _messagesStreamLoading('Loading messages…');
+    }
 
-        // Handle new messages
-        _handleNewMessages(messages);
+    final messages = _mergeMessageLists();
 
-        // Update current display date based on the most recent message
-        if (messages.isNotEmpty) {
-          final latestMessage = messages.last;
-          final messageDate = DateTime(
-            latestMessage.timestamp.year,
-            latestMessage.timestamp.month,
-            latestMessage.timestamp.day,
+    return ListView.builder(
+      controller: _scrollController,
+      reverse: true,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: messages.length + (_loadingOlder ? 1 : 0),
+      itemBuilder: (context, index) {
+        final n = messages.length;
+        if (_loadingOlder && index == n) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.blue.shade600,
+                ),
+              ),
+            ),
           );
-          if (_currentDisplayDate != messageDate) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              setState(() {
-                _currentDisplayDate = messageDate;
-              });
-            });
-          }
         }
 
-        return ListView.builder(
-          controller: _scrollController,
-          reverse: true, // This will show latest messages at the bottom
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          itemCount: messages.length,
-          itemBuilder: (context, index) {
-            // Since we're using reverse: true, we need to reverse the index
-            final reversedIndex = messages.length - 1 - index;
-            final message = messages[reversedIndex];
-            final showDateSeparator =
-                _shouldShowDateSeparator(messages, reversedIndex);
+        final reversedIndex = n - 1 - index;
+        final message = messages[reversedIndex];
+        final showDateSeparator =
+            _shouldShowDateSeparator(messages, reversedIndex);
 
-            return Column(
-              children: [
-                if (showDateSeparator)
-                  _buildMessageDateSeparator(message.timestamp),
-                _buildMessageBubble(message),
-              ],
-            );
-          },
+        return Column(
+          children: [
+            if (showDateSeparator)
+              _buildMessageDateSeparator(message.timestamp),
+            _buildMessageBubble(message),
+          ],
         );
       },
     );
@@ -1274,8 +1456,9 @@ class _ChatDetailViewState extends State<ChatDetailView> {
 
   @override
   void dispose() {
+    _recentMessagesSub?.cancel();
     _messageController.dispose();
-    _scrollController.removeListener(_setupScrollListener);
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }

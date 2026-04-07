@@ -11,32 +11,62 @@ import '../../constants/appConstants.dart';
 import '../../models/festivalModel.dart';
 import '../../utilities/sharedPrefs.dart';
 
+Uri _buildFestivalListUri({int page = 1, String? search}) {
+  var urlStr = '${AppConstants.baseUrl}/getfestival?page=$page';
+  if (search != null && search.trim().isNotEmpty) {
+    urlStr += '&search=${Uri.encodeComponent(search.trim())}';
+  }
+  return Uri.parse(urlStr);
+}
 
-Future<FestivalResponse?> getFestivalCollection(BuildContext context) async {
-  final url = Uri.parse("${AppConstants.baseUrl}/getfestival");
+Future<FestivalResponse?> getFestivalCollection(
+  BuildContext context, {
+  int page = 1,
+  String? search,
+}) async {
+  final url = _buildFestivalListUri(page: page, search: search);
   const timeoutDuration = Duration(seconds: 30); // Define a timeout duration
 
   try {
     final bearerToken = await getToken();
+    final headers = {
+      'Authorization': 'Bearer $bearerToken',
+      'Content-Type': 'application/json',
+    };
+
+    // Debug: log full request
+    debugPrint('');
+    debugPrint('📤 ═══════════════ FESTIVALS API REQUEST ═══════════════');
+    debugPrint('📤 method: GET');
+    debugPrint('📤 url: $url');
+    debugPrint('📤 headers: Authorization=Bearer $bearerToken, Content-Type=${headers['Content-Type']}');
+    debugPrint('📤 ═══════════════════════════════════════════════════════');
+    debugPrint('');
+
     final response = await http.get(
       url,
-      headers: {
-        'Authorization': 'Bearer $bearerToken',
-        'Content-Type': 'application/json', // Set the content type to JSON
-      },
-    ).timeout(timeoutDuration); // Apply timeout to the request
+      headers: headers,
+    ).timeout(timeoutDuration);
+
+    // Debug: log complete response
+    final isSuccess = response.statusCode == 200;
+    debugPrint('');
+    debugPrint('📥 ═══════════════ FESTIVALS API RESPONSE ═══════════════');
+    debugPrint('📥 statusCode: ${response.statusCode} ${isSuccess ? "✓" : "✗"}');
+    debugPrint('📥 headers: ${response.headers}');
+    debugPrint('📥 body: ${response.body}');
+    debugPrint('📥 ═══════════════════════════════════════════════════════');
+    debugPrint('');
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return FestivalResponse.fromJson(data);
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final festivalResponse = FestivalResponse.fromJson(data);
+      debugPrint('✅ FESTIVALS API parsed: message=${festivalResponse.message}, data.length=${festivalResponse.data.length}');
+      return festivalResponse;
     } else if (response.statusCode == 403) {
-      // Handle client-side errors (e.g., validation failed)
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
-      showExpiredAccountErrorDialog(
-          context, responseData['message'], responseData['errors']);
+      _tryParseAndShowExpiredError(context, response.body);
     } else {
-      final data = json.decode(response.body);
-      showErrorDialog(context, data['message'], data['errors']);
+      _tryParseAndShowError(context, response.statusCode, response.body);
     }
   } on TimeoutException catch (_) {
     final connectivity = await Connectivity().checkConnectivity();
@@ -81,6 +111,70 @@ Future<FestivalResponse?> getFestivalCollection(BuildContext context) async {
         "An unexpected error occurred while fetching festivals: $error", []);
     print("Error fetching festivals: $error");
   }
+}
+
+/// Same `/getfestival` endpoint with optional server-side [search] and [page].
+/// Does not show dialogs; throws so map/search UIs can handle errors locally.
+Future<FestivalResponse> fetchFestivalsWithQuery({
+  int page = 1,
+  String? search,
+}) async {
+  final url = _buildFestivalListUri(page: page, search: search);
+  const timeoutDuration = Duration(seconds: 30);
+
+  final bearerToken = await getToken();
+  final headers = {
+    'Authorization': 'Bearer $bearerToken',
+    'Content-Type': 'application/json',
+  };
+
+  final response =
+      await http.get(url, headers: headers).timeout(timeoutDuration);
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body) as Map<String, dynamic>;
+    return FestivalResponse.fromJson(data);
+  }
+  throw Exception('Failed to load festivals (${response.statusCode})');
+}
+
+void _tryParseAndShowExpiredError(BuildContext context, String body) {
+  try {
+    final trimmed = body.trim();
+    if (trimmed.startsWith('{')) {
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final message = data['message']?.toString() ?? 'Access denied';
+      final errors = data['errors'];
+      showExpiredAccountErrorDialog(
+        context,
+        message,
+        errors is List ? List<dynamic>.from(errors as List) : [],
+      );
+      return;
+    }
+  } catch (_) {}
+  showExpiredAccountErrorDialog(context, 'Access denied.', []);
+}
+
+void _tryParseAndShowError(BuildContext context, int statusCode, String body) {
+  try {
+    final trimmed = body.trim();
+    if (trimmed.startsWith('{')) {
+      final data = json.decode(body) as Map<String, dynamic>;
+      final message = data['message']?.toString() ?? 'Request failed';
+      final errors = data['errors'];
+      showErrorDialog(
+        context,
+        message,
+        errors is List ? List<dynamic>.from(errors as List) : [],
+      );
+      return;
+    }
+  } catch (_) {}
+  final message = statusCode >= 500
+      ? 'Server error ($statusCode). Please try again later.'
+      : 'Request failed ($statusCode).';
+  showErrorDialog(context, message, []);
 }
 
 Future<bool> _hasGoodConnection() async {
