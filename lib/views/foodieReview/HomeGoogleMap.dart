@@ -6,6 +6,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../apis/festivalCollection/getFestivalCollection.dart';
 import '../../models/festivalModel.dart';
 import '../../providers/festivalProvider.dart';
+import '../../utilities/connectivityServices.dart';
+import '../../utilities/festivalLocalSearch.dart';
+import '../../utilities/festivalSearchErrorMessage.dart';
 import '../../utilities/getUserLocation.dart';
 import '../foodieStall/mapViews/LocationMap.dart';
 import 'widgets/modalBottomSheet.dart';
@@ -161,6 +164,22 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
 
   Future<void> _performSearchApi(String query) async {
     if (!mounted) return;
+
+    final festivalProvider =
+        Provider.of<FestivalProvider>(context, listen: false);
+    final hasLocalFestivals = festivalProvider.festivals.isNotEmpty;
+    final online = await checkInternetConnection();
+
+    if (!online && hasLocalFestivals) {
+      setState(() {
+        _searchResultFestivals =
+            filterFestivalsLocally(festivalProvider.festivals, query);
+        _isSearchingApi = false;
+        _searchErrorApi = null;
+      });
+      return;
+    }
+
     setState(() {
       _isSearchingApi = true;
       _searchErrorApi = null;
@@ -178,7 +197,7 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
       setState(() {
         _searchResultFestivals = [];
         _isSearchingApi = false;
-        _searchErrorApi = e.toString().replaceFirst('Exception: ', '');
+        _searchErrorApi = messageForFestivalSearchFailure(e);
       });
     }
   }

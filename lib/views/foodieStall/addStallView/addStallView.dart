@@ -14,6 +14,9 @@ import '../../../apis/stallManagment/addStall_api.dart';
 import '../../../models/festivalModel.dart';
 import '../../../models/menuItemModel.dart';
 import '../../../providers/festivalProvider.dart';
+import '../../../utilities/connectivityServices.dart';
+import '../../../utilities/festivalLocalSearch.dart';
+import '../../../utilities/festivalSearchErrorMessage.dart';
 import '../../../utilities/scaffoldBackground.dart';
 import '../mapViews/LocationMap.dart';
 import '../../../utilities/dilalogBoxes.dart' hide showErrorDialog; // Contains showErrorDialog()
@@ -1406,6 +1409,22 @@ class _FestivalPickerSheetState extends State<_FestivalPickerSheet> {
   }
 
   Future<void> _runSearchApi(String query) async {
+    if (!mounted) return;
+
+    final festivalProvider =
+        Provider.of<FestivalProvider>(context, listen: false);
+    final hasLocalFestivals = festivalProvider.festivals.isNotEmpty;
+    final online = await checkInternetConnection();
+
+    if (!online && hasLocalFestivals) {
+      setState(() {
+        _searchResults = filterFestivalsLocally(festivalProvider.festivals, query);
+        _isSearchApi = false;
+        _searchError = null;
+      });
+      return;
+    }
+
     setState(() {
       _isSearchApi = true;
       _searchError = null;
@@ -1423,7 +1442,7 @@ class _FestivalPickerSheetState extends State<_FestivalPickerSheet> {
       setState(() {
         _searchResults = [];
         _isSearchApi = false;
-        _searchError = e.toString().replaceFirst('Exception: ', '');
+        _searchError = messageForFestivalSearchFailure(e);
       });
     }
   }

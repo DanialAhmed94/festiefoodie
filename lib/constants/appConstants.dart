@@ -18,7 +18,7 @@ class AppConstants {
   static String favFod = "assets/images/favouritefood.png";
   static String app1Card = "assets/images/app1Card.png";
   static String app2Card = "assets/images/app2card.png";
-  static String foodielogo = "assets/images/logotesting.png";
+  static String foodielogo = "assets/images/Festival Foodie logo design.png";
   static String userIcon = "assets/images/userIcon.png";
   static String userProfileIcon = "assets/images/userProfileIcon.png";
   static String addStallCard = "assets/images/addStallCard.png";

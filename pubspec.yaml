@@ -74,7 +74,7 @@ dependencies:
 
   chewie: ^1.8.2
   pinput: ^5.0.1
-  
+
 
 dev_dependencies:
   flutter_test:
@@ -93,9 +93,6 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
 
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
 
   assets:
@@ -116,6 +113,7 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/logotesting.png"
+  image_path: "assets/images/Festival Foodie logo design.png"
   adaptive_icon_background: "#ffffff"  # Optional for Android adaptive icons
 
+  # Make sure your image: Is square (e.g., 1024x1024) Has transparent background (very important for adaptive icons) Has no extra padding/white space

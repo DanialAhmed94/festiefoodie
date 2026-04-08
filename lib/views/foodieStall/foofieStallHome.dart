@@ -13,7 +13,6 @@ import '../../providers/stallProvider.dart';
 import '../../utilities/scaffoldBackground.dart';
 import '../../utilities/sharedPrefs.dart';
 import '../../apis/deleteAccount_api.dart';
-import '../../services/firestore_user_service.dart';
 import '../feed/createPost.dart';
 import '../feed/socialpstview.dart';
 import 'addStallView/addStallView.dart';
@@ -28,6 +27,57 @@ class FoodieStallHome extends StatefulWidget {
 
 class _FoodieStallHomeState extends State<FoodieStallHome> {
   String? userName;
+  bool _authBusy = false;
+  String _authBusyMessage = '';
+
+  Future<void> _handleLogout() async {
+    if (_authBusy) return;
+    setState(() {
+      _authBusy = true;
+      _authBusyMessage = 'Logging out…';
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        FadePageRouteBuilder(widget: LoginView()),
+        (route) => false,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _authBusy = false;
+          _authBusyMessage = '';
+        });
+      }
+    }
+  }
+
+  Future<void> _handleDeleteAccountAfterConfirm() async {
+    if (_authBusy) return;
+    setState(() {
+      _authBusy = true;
+      _authBusyMessage = 'Deleting account…';
+    });
+    try {
+      final success = await deleteAccount(context);
+      if (!mounted) return;
+      if (success) {
+        Navigator.of(context).pushAndRemoveUntil(
+          FadePageRouteBuilder(widget: LoginView()),
+          (route) => false,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _authBusy = false;
+          _authBusyMessage = '';
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -48,9 +98,11 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
   @override
   Widget build(BuildContext context) {
     return BackgroundScaffold(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
             AppBar(
               backgroundColor: Colors.transparent,
               title: Text(
@@ -76,15 +128,7 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                     print('🔍 Debug: Popup menu item selected: $value');
                     if (value == 'logout') {
                       print('🔍 Debug: Logout option selected');
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.clear(); // Clear all saved login/user data
-
-                      // Optionally navigate to login screen
-                      // Replace with your actual login screen route
-                      Navigator.of(context).pushAndRemoveUntil(
-                        FadePageRouteBuilder( widget: LoginView()),
-                            (route) => false,
-                      );
+                      await _handleLogout();
                     } else if (value == 'delete_account') {
                       print('🔍 Debug: Delete account option selected');
                       print('🔍 Debug: About to show confirmation dialog...');
@@ -129,27 +173,8 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                       print('🔍 Debug: Confirmation dialog result: $confirmed');
 
                       if (confirmed == true) {
-                        print('🔍 Debug: User confirmed deletion, getting user ID...');
-                        // Get user ID and delete account
-                        // final userId = await FirestoreUserService.getUserId();
-                        // print('🔍 Debug: Retrieved user ID: $userId');
-                        
-
-                          print('🔍 Debug: Calling deleteAccount API with userId');
-                          final success = await deleteAccount(context);
-                          print('🔍 Debug: deleteAccount API returned: $success');
-                          
-                          if (success) {
-                            print('🔍 Debug: Account deletion successful, navigating to login...');
-                            // Navigate to login screen after successful deletion
-                            Navigator.of(context).pushAndRemoveUntil(
-                              FadePageRouteBuilder(widget: LoginView()),
-                              (route) => false,
-                            );
-                          } else {
-                            print('🔍 Debug: Account deletion failed');
-                          }
-
+                        print('🔍 Debug: User confirmed deletion');
+                        await _handleDeleteAccountAfterConfirm();
                       } else {
                         print('🔍 Debug: User cancelled deletion');
                       }
@@ -250,15 +275,62 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                       child: _buildStallCard(
                         context,
                         MediaQuery.of(context).size.width * 0.95,
-                        stall.stallName,stall // Display the stall name dynamically
+                        stall.stallName,
+                        stall,
                       ),
                     );
                   },
                 );
               },
             ),
-          ],
-        ),
+              ],
+            ),
+          ),
+          if (_authBusy)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: ColoredBox(
+                  color: Colors.black38,
+                  child: Center(
+                    child: Card(
+                      elevation: 8,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 22,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: Color(0xFFF96222),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              _authBusyMessage,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -302,12 +374,20 @@ class _FoodieStallHomeState extends State<FoodieStallHome> {
                               context,
                               FadePageRouteBuilder(
                                   widget: StallDetailView(
+                                    stallId: stall.id,
+                                    festivalId: stall.festivalId,
+                                    eventId: stall.eventId,
                                     closingTime: stall.closingTime,
-                                    festivalName: stall.festivalName,
+                                    festivalName: stall.festivalName?.toString() ??
+                                        '',
+                                    eventName: stall.eventName?.toString(),
                                     endDate: stall.toDate,
                                     startDate: stall.fromDate,
                                     longitude: stall.longitude,
-                                    latitude: stall.latitude,imageUrl: stall.image,openingTime: stall.openingTime,stallName: stall.stallName,
+                                    latitude: stall.latitude,
+                                    imageUrl: stall.image,
+                                    openingTime: stall.openingTime,
+                                    stallName: stall.stallName,
                                   )));
                         },
                         style: ElevatedButton.styleFrom(

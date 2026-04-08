@@ -1,11 +1,18 @@
+import 'dart:async';
+
 import 'package:festiefoodie/views/foodieStall/addStallView/StallsbyFestival.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../../annim/transiton.dart';
+import '../../../apis/festivalCollection/getFestivalCollection.dart';
 import '../../../constants/appConstants.dart';
+import '../../../models/festivalModel.dart';
 import '../../../providers/festivalProvider.dart';
+import '../../../utilities/connectivityServices.dart';
+import '../../../utilities/festivalLocalSearch.dart';
+import '../../../utilities/festivalSearchErrorMessage.dart';
 import '../../../utilities/scaffoldBackground.dart';
 
 class ViewAllFestivals extends StatefulWidget {
@@ -18,73 +25,124 @@ class ViewAllFestivals extends StatefulWidget {
 class _ViewAllFestivalsState extends State<ViewAllFestivals> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+  Timer? _searchDebounce;
   bool _isSearching = false;
-  List<dynamic> _filteredFestivals = [];
+  bool _isSearchingApi = false;
+  String? _searchErrorApi;
+  List<FestivalResource> _searchResultFestivals = [];
 
   @override
   void initState() {
     super.initState();
-    // Fetch festivals once the widget is built.
+    _scrollController.addListener(_onScrollNearEnd);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<FestivalProvider>(context, listen: false).fetchFestivals(context);
     });
-    
-    // Listen to search controller changes
     _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScrollNearEnd);
+    _scrollController.dispose();
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
+  void _onScrollNearEnd() {
+    if (!mounted) return;
+    if (_searchController.text.trim().isNotEmpty) return;
+    final p = Provider.of<FestivalProvider>(context, listen: false);
+    if (!p.hasMore || p.isLoadingMore || p.isFetching) return;
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final threshold = 280.0;
+    final nearEnd = pos.pixels >= pos.maxScrollExtent - threshold;
+    if (nearEnd) {
+      debugPrint(
+          '📄 ViewAllFestivals scroll: trigger loadMore '
+          'pixels=${pos.pixels.toStringAsFixed(0)} max=${pos.maxScrollExtent.toStringAsFixed(0)} '
+          'hasMore=${p.hasMore} list=${p.festivals.length}');
+      p.loadMore(context);
+    }
+  }
+
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase().trim();
+    final query = _searchController.text.trim();
+    _searchDebounce?.cancel();
+
     setState(() {
       _isSearching = query.isNotEmpty;
     });
-    
+
     if (query.isEmpty) {
       setState(() {
-        _filteredFestivals = [];
+        _searchResultFestivals = [];
+        _searchErrorApi = null;
+        _isSearchingApi = false;
       });
       return;
     }
 
-    // Get the current festival provider
-    final festivalProvider = Provider.of<FestivalProvider>(context, listen: false);
-    
-    // Filter festivals based on search query
-    final filtered = festivalProvider.festivals.where((festival) {
-      final nameOrganizer = (festival.nameOrganizer ?? '').toLowerCase();
-      final description = (festival.description ?? '').toLowerCase();
-      final descriptionOrganizer = (festival.descriptionOrganizer ?? '').toLowerCase();
-      
-      return nameOrganizer.contains(query) || 
-             description.contains(query) || 
-             descriptionOrganizer.contains(query);
-    }).toList();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _performSearchApi(query);
+    });
+  }
+
+  Future<void> _performSearchApi(String query) async {
+    if (!mounted) return;
+
+    final festivalProvider =
+        Provider.of<FestivalProvider>(context, listen: false);
+    final hasLocalFestivals = festivalProvider.festivals.isNotEmpty;
+    final online = await checkInternetConnection();
+
+    if (!online && hasLocalFestivals) {
+      setState(() {
+        _searchResultFestivals =
+            filterFestivalsLocally(festivalProvider.festivals, query);
+        _isSearchingApi = false;
+        _searchErrorApi = null;
+      });
+      return;
+    }
 
     setState(() {
-      _filteredFestivals = filtered;
+      _isSearchingApi = true;
+      _searchErrorApi = null;
     });
-    
-    // Debug print to verify filtering is working
-    print('Search query: "$query"');
-    print('Total festivals: ${festivalProvider.festivals.length}');
-    print('Filtered festivals: ${_filteredFestivals.length}');
+    try {
+      final response = await fetchFestivalsWithQuery(page: 1, search: query);
+      if (!mounted) return;
+      setState(() {
+        _searchResultFestivals = response.data;
+        _isSearchingApi = false;
+        _searchErrorApi = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _searchResultFestivals = [];
+        _isSearchingApi = false;
+        _searchErrorApi = messageForFestivalSearchFailure(e);
+      });
+    }
   }
 
   void _clearSearch() {
+    _searchDebounce?.cancel();
     _searchController.clear();
     _searchFocusNode.unfocus();
     setState(() {
       _isSearching = false;
-      _filteredFestivals = [];
+      _searchResultFestivals = [];
+      _searchErrorApi = null;
+      _isSearchingApi = false;
     });
-    print('Search cleared - showing all festivals');
   }
 
   @override
@@ -93,28 +151,26 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
       child: Consumer<FestivalProvider>(
         builder: (context, festivalProvider, child) {
           return Column(
-              children: [
-              // AppBar
-                AppBar(
-                  backgroundColor: Colors.transparent,
-                  title: const Text(
-                    "Festivals",
-                    style: TextStyle(
-                      fontFamily: "inter-semibold",
-                      fontSize: 32,
-                      color: Colors.white,
-                    ),
-                  ),
-                  centerTitle: true,
-                  leading: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
+            children: [
+              AppBar(
+                backgroundColor: Colors.transparent,
+                title: const Text(
+                  "Festivals",
+                  style: TextStyle(
+                    fontFamily: "inter-semibold",
+                    fontSize: 32,
+                    color: Colors.white,
                   ),
                 ),
-              
-              // Search Bar
+                centerTitle: true,
+                leading: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: SvgPicture.asset(AppConstants.backIcon, height: 50),
+                ),
+              ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -130,6 +186,7 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
                   child: TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
+                    textInputAction: TextInputAction.search,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -191,11 +248,10 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
                   ),
                 ),
               ),
-
-              // Search Results Header
               if (_isSearching) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
                       Icon(
@@ -204,37 +260,139 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
                         size: 20,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        "Search Results (${_filteredFestivals.length})",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          _isSearchingApi
+                              ? 'Searching…'
+                              : 'Search Results (${_searchResultFestivals.length})',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
-
-              // Content
               Expanded(
-                child: festivalProvider.isFetching && festivalProvider.festivals.isEmpty
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
-                        ),
-                      )
-                    : _isSearching && _filteredFestivals.isEmpty
-                        ? _buildNoResultsWidget()
-                        : (_isSearching ? _filteredFestivals : festivalProvider.festivals).isEmpty
-                            ? _buildNoFestivalsWidget()
-                            : _buildFestivalsList(_isSearching ? _filteredFestivals : festivalProvider.festivals),
+                child: _buildFestivalBody(festivalProvider),
               ),
+              if (!_isSearching && festivalProvider.isLoadingMore)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFFF96222),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildFestivalBody(FestivalProvider festivalProvider) {
+    final query = _searchController.text.trim();
+
+    if (!_isSearching &&
+        festivalProvider.isFetching &&
+        festivalProvider.festivals.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF96222)),
+        ),
+      );
+    }
+
+    if (_isSearching && _isSearchingApi && query.isNotEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF96222),
+        ),
+      );
+    }
+
+    if (_isSearching &&
+        !_isSearchingApi &&
+        query.isNotEmpty &&
+        _searchResultFestivals.isEmpty) {
+      return _buildNoResultsWidget();
+    }
+
+    final list =
+        _isSearching ? _searchResultFestivals : festivalProvider.festivals;
+    if (list.isEmpty) {
+      return _buildNoFestivalsWidget();
+    }
+
+    final showLoadMoreFooter =
+        !_isSearching && festivalProvider.isLoadingMore;
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      itemCount: list.length + (showLoadMoreFooter ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (showLoadMoreFooter && index == list.length) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Color(0xFFF96222),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Loading more festivals…',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final festival = list[index];
+        final title = festival.nameOrganizer ?? festival.description;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () {
+              _clearSearch();
+              Navigator.push(
+                context,
+                FadePageRouteBuilder(
+                  widget: ViewAllStallsView(festivalId: festival.id.toString()),
+                ),
+              );
+            },
+            child: _buildFestivalCard(
+              context,
+              MediaQuery.of(context).size.width * 0.95,
+              title,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -256,6 +414,20 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
             ),
           ),
           const SizedBox(height: 20),
+          if (_searchErrorApi != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                _searchErrorApi!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.redAccent,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
             "No festivals found",
             style: TextStyle(
@@ -316,45 +488,12 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
     );
   }
 
-  Widget _buildFestivalsList(List<dynamic> festivals) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      itemCount: festivals.length,
-                    itemBuilder: (context, index) {
-        final festival = festivals[index];
-        final title = festival.nameOrganizer ?? festival.description;
-        
-                               return Padding(
-           padding: const EdgeInsets.only(bottom: 12),
-           child: GestureDetector(
-             onTap: () {
-               // Clear search and unfocus keyboard
-               _clearSearch();
-               // Navigate to stalls
-               Navigator.push(
-                 context,
-                 FadePageRouteBuilder(
-                   widget: ViewAllStallsView(festivalId: festival.id.toString()),
-                 ),
-               );
-             },
-             child: _buildFestivalCard(
-               context,
-               MediaQuery.of(context).size.width * 0.95,
-               title,
-             ),
-           ),
-         );
-                    },
-    );
-  }
-
   Widget _buildFestivalCard(BuildContext context, double width, String title) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double cardWidth = constraints.maxWidth;
         final double leftBorderWidth = cardWidth * 0.2;
-        
+
         return Stack(
           children: [
             Card(
@@ -364,7 +503,8 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
               elevation: 5,
               child: Container(
                 width: cardWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white,

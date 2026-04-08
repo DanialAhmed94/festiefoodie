@@ -11,6 +11,9 @@ import '../../../apis/festivalCollection/getFestivalCollection.dart';
 import '../../../constants/appConstants.dart';
 import '../../../models/festivalModel.dart';
 import '../../../providers/festivalProvider.dart';
+import '../../../utilities/connectivityServices.dart';
+import '../../../utilities/festivalLocalSearch.dart';
+import '../../../utilities/festivalSearchErrorMessage.dart';
 import '../../../utilities/reviewsScaffoldBackground.dart';
 import '../../../utilities/scaffoldBackground.dart';
 
@@ -94,6 +97,22 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
 
   Future<void> _performSearchApi(String query) async {
     if (!mounted) return;
+
+    final festivalProvider =
+        Provider.of<FestivalProvider>(context, listen: false);
+    final hasLocalFestivals = festivalProvider.festivals.isNotEmpty;
+    final online = await checkInternetConnection();
+
+    if (!online && hasLocalFestivals) {
+      setState(() {
+        _searchResultFestivals =
+            filterFestivalsLocally(festivalProvider.festivals, query);
+        _isSearchingApi = false;
+        _searchErrorApi = null;
+      });
+      return;
+    }
+
     setState(() {
       _isSearchingApi = true;
       _searchErrorApi = null;
@@ -111,7 +130,7 @@ class _ViewAllFestivalsState extends State<SeeAllFestivals> {
       setState(() {
         _searchResultFestivals = [];
         _isSearchingApi = false;
-        _searchErrorApi = e.toString().replaceFirst('Exception: ', '');
+        _searchErrorApi = messageForFestivalSearchFailure(e);
       });
     }
   }

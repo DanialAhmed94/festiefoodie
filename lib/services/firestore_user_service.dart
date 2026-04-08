@@ -12,6 +12,8 @@ class FirestoreUserService {
   static const String _usersCollection = 'users';
 
   /// Writes the chat user doc when a **new** account is created (signup).
+  /// Only call after the backend signup API has returned success; do not call
+  /// on failed or unverified signup responses (see signup API in authentication).
   /// [registeredFromApp] is applied via [set] plus an explicit [update] so it is
   /// not lost to merge/replace races (e.g. backend writing the same doc).
   /// Not sent to REST APIs — Firestore only.

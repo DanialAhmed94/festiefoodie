@@ -3,10 +3,12 @@
 import 'package:location/location.dart';
 import 'package:connectivity_plus/connectivity_plus.dart'; // Added import
 
-/// Checks for an active internet connection.
+/// Checks for an active network interface (Wi‑Fi / mobile, not [none] only).
+/// Uses [Connectivity.checkConnectivity] list API (connectivity_plus 6+).
 Future<bool> checkInternetConnection() async {
-  var connectivityResult = await Connectivity().checkConnectivity();
-  return connectivityResult != ConnectivityResult.none;
+  final results = await Connectivity().checkConnectivity();
+  if (results.isEmpty) return false;
+  return results.any((r) => r != ConnectivityResult.none);
 }
 
 /// Checks the status of the location service.

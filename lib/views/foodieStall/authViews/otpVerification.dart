@@ -329,7 +329,7 @@ class _PhoneOtpViewState extends State<PhoneOtpView> with TickerProviderStateMix
       setState(() => _loading = true);
       
       print('🔍 Debug: Calling signup API...');
-      await signUp(
+      final signupOk = await signUp(
         context,
         widget.username,
         widget.email,
@@ -339,9 +339,13 @@ class _PhoneOtpViewState extends State<PhoneOtpView> with TickerProviderStateMix
         '', // Empty organization address
         widget.password,
       );
-      
-      // If signup is successful, the API will handle navigation
-      print('🔍 Debug: Signup completed successfully');
+
+      if (signupOk) {
+        print('🔍 Debug: Signup API succeeded (account created)');
+      } else {
+        print(
+            '🔍 Debug: Signup API did not complete successfully (see error dialog / logs)');
+      }
       
     } catch (e) {
       print('🔍 Debug: Error during signup: $e');

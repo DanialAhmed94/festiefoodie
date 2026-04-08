@@ -196,6 +196,8 @@ class _SignupViewState extends State<SignupView> {
     _usernameController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
+    _confirmPasswordFocus.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -342,8 +344,12 @@ class _SignupViewState extends State<SignupView> {
                       prefixIcon: const Icon(Icons.lock, color: Colors.white),
                     ),
                     keyboardType: TextInputType.visiblePassword,
-                    textInputAction: TextInputAction.done,
+                    textInputAction: TextInputAction.next,
                     style: const TextStyle(color: Colors.black),
+                    onEditingComplete: () {
+                      FocusScope.of(context)
+                          .requestFocus(_confirmPasswordFocus);
+                    },
                   ),
 
                   const SizedBox(height: 20),
@@ -374,6 +380,12 @@ class _SignupViewState extends State<SignupView> {
                             _obscureConfirmPassword = !_obscureConfirmPassword),
                       ),
                     ),
+                    keyboardType: TextInputType.visiblePassword,
+                    textInputAction: TextInputAction.done,
+                    style: const TextStyle(color: Colors.black),
+                    onEditingComplete: () {
+                      FocusScope.of(context).unfocus();
+                    },
                     validator: (value) {
                       if (value != _passwordController.text)
                         return 'Passwords don\'t match';

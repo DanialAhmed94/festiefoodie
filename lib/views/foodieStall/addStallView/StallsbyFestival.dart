@@ -376,6 +376,8 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                     Expanded(
                       child: Text(
                         title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontFamily: "inter-semibold",
                           fontSize: 18,
@@ -383,20 +385,22 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
                     SizedBox(
                       height: 36,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Clear search and unfocus keyboard
                           _clearSearch();
-                          // Navigate to stall details
                           Navigator.push(
-                              context,
-                              FadePageRouteBuilder(
-                                  widget: StallDetailView(
+                            context,
+                            FadePageRouteBuilder(
+                              widget: StallDetailView(
+                                stallId: stall.id,
+                                festivalId: stall.festivalId,
+                                eventId: stall.eventId,
                                 closingTime: stall.closingTime,
-                                festivalName: stall.festivalName,
+                                festivalName:
+                                    stall.festivalName?.toString() ?? '',
+                                eventName: stall.eventName?.toString(),
                                 endDate: stall.toDate,
                                 startDate: stall.fromDate,
                                 longitude: stall.longitude,
@@ -404,26 +408,9 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                                 imageUrl: stall.image,
                                 openingTime: stall.openingTime,
                                 stallName: stall.stallName,
-                              )));
-                          // ScaffoldMessenger.of(context).showSnackBar(
-                          //   SnackBar(
-                          //     content: const Text(
-                          //       "This feature is in development phase.",
-                          //       style: TextStyle(
-                          //         fontFamily: "inter-medium",
-                          //         fontSize: 14,
-                          //         color: Colors.white,
-                          //       ),
-                          //     ),
-                          //     backgroundColor: Colors.black87,
-                          //     behavior: SnackBarBehavior.floating,
-                          //     action: SnackBarAction(
-                          //       label: "OK",
-                          //       textColor: Colors.orange,
-                          //       onPressed: () {},
-                          //     ),
-                          //   ),
-                          // );
+                              ),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
@@ -433,7 +420,7 @@ class _ViewAllStallsViewState extends State<ViewAllStallsView> {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
                         child: const Text(
-                          "View Detail",
+                          'View Detail',
                           style: TextStyle(
                             fontFamily: "inter-medium",
                             fontSize: 14,
