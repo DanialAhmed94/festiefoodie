@@ -18,8 +18,8 @@ Future<bool> deleteAccount(BuildContext context, ) async {
 
   
   final url = Uri.parse("${AppConstants.baseUrl}/delete_user");
-  final userId = await getUserId().toString();
-
+  final int? userIdInt = await getUserId();
+  final String? userIdStr = userIdInt != null ? userIdInt.toString() : null;
 
   try {
     final bearerToken = await getToken(); // Fetch the bearer token
@@ -32,22 +32,33 @@ Future<bool> deleteAccount(BuildContext context, ) async {
       },
     ).timeout(const Duration(seconds: 30));
 
-
+    debugPrint('Delete account API: statusCode=${response.statusCode}');
+    debugPrint('Delete account API: body=${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 204) {
       try {
-        // Clean up Firebase data before clearing local data
-        if (userId != null) {
+        // Clean up Firebase data before clearing local data (server already deleted account).
+        final hasLocalUserId =
+            userIdStr != null && userIdStr.isNotEmpty && userIdStr != '0';
+        if (hasLocalUserId) {
           try {
-            await _cleanupUserChatData(userId.toString()); // Convert int to string
+            await _cleanupUserChatData(userIdStr!);
             print('✅ Firebase chat data cleaned up successfully');
 
             // Clean up user's posts from Firestore
-            await _cleanupUserPosts(userId.toString());
+            await _cleanupUserPosts(userIdStr);
             print('✅ User posts cleaned up successfully');
           } catch (e) {
             print('⚠️ Warning: Failed to cleanup Firebase data: $e');
             // Don't block account deletion if Firebase cleanup fails
+          }
+          // Always remove `users/{id}` after API success so profile does not linger
+          // if chat/posts cleanup failed before user doc removal.
+          try {
+            await FirestoreUserService.deleteUser(userIdStr);
+            print('✅ Firestore user profile deleted: $userIdStr');
+          } catch (e) {
+            print('⚠️ Warning: Failed to delete Firestore user profile: $e');
           }
         }
 
@@ -248,10 +259,6 @@ Future<void> _cleanupUserChatData(String userId) async {
         print('✅ Processed group chat: ${chatDoc.id}');
       }
     }
-
-    // 3. Delete user document from Firestore
-    await FirestoreUserService.deleteUser(userId);
-    print('🗑️ Deleted user document: $userId');
 
     print('✅ Chat data cleanup completed for user: $userId');
   } catch (e) {
