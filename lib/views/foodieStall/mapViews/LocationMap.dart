@@ -578,7 +578,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                    "FestieFoodie is global, hold tight while we load the map."),
+                                    "Festival Foodie is global, hold tight while we load the map."),
                                 backgroundColor: Colors.blue.shade600,
                                 duration: Duration(seconds: 3),
                               ),
@@ -660,7 +660,7 @@ class _GoogleMapViewState extends State<GoogleMapView>
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "FestieFoodie is global, hold tight while we load the map.",
+                        "Festival Foodie is global, hold tight while we load the map.",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,

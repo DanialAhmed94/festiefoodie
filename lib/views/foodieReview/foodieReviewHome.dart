@@ -73,7 +73,7 @@ class _MainScreenState extends State<FoodieReviewHomeMap> {
         appBar: AppBar(
           toolbarHeight: 75,
           title: Text(
-            'FestieFoodie',
+            'Festival Foodie',
             style: TextStyle(
               fontFamily: 'Poppins-Bold',
               fontWeight: FontWeight.bold,

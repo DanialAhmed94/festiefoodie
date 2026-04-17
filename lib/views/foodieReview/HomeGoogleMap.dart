@@ -577,7 +577,7 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      "FestieFoodie is global, hold tight while we load the map.",
+                      "Festival Foodie is global, hold tight while we load the map.",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,

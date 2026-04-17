@@ -103,7 +103,7 @@ class MyDrawer extends StatelessWidget {
               backgroundColor: Color(0xFFF96222),
               centerTitle: true,
               title: Text(
-                "Hello FestieFoodie",
+                "Hello Festival Foodie",
                 style:
                     TextStyle(color: Colors.white, fontFamily: 'Poppins-Bold'),
               ),
