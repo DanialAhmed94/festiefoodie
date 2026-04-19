@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:festiefoodie/providers/eventProvider.dart';
 import 'package:festiefoodie/providers/festivalProvider.dart';
@@ -7,6 +8,7 @@ import 'package:festiefoodie/providers/ratingsProvider.dart';
 import 'package:festiefoodie/providers/stallProvider.dart';
 import 'package:festiefoodie/utilities/sharedPrefs.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
@@ -101,6 +103,13 @@ void main() async {
   }
 
   await Firebase.initializeApp();
+
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // Must be before runApp
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

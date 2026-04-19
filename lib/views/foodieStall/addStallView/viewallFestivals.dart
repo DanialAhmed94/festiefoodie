@@ -279,20 +279,6 @@ class _ViewAllFestivalsState extends State<ViewAllFestivals> {
               Expanded(
                 child: _buildFestivalBody(festivalProvider),
               ),
-              if (!_isSearching && festivalProvider.isLoadingMore)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Color(0xFFF96222),
-                      ),
-                    ),
-                  ),
-                ),
             ],
           );
         },

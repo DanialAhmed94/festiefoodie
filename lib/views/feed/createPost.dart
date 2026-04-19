@@ -1061,7 +1061,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                                       recognizer: TapGestureRecognizer()
                                         ..onTap = () async {
                                           final Uri url = Uri.parse(
-                                              "https://crapadvisor.semicolonstech.com/privacy.html");
+                                              "https://thefestivalapps.com/Festival-foodie/privacy-policy.html");
                                           if (!await launchUrl(
                                             url,
                                             mode:
